@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { classService, studentService, surveyService } from '@/lib/firestore';
 import { ClassInfo, StudentProfile, SurveyResponse, Survey } from '@/types';
@@ -16,6 +17,7 @@ import { StudentEmotionChart } from '@/components/teacher/StudentEmotionChart';
 
 export default function TeacherDashboardPage() {
   const { currentUser, userProfile, logout } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
@@ -572,7 +574,12 @@ export default function TeacherDashboardPage() {
                     student={student}
                     onViewDetails={(studentId) => {
                       // 학생 상세 분석 페이지로 이동
-                      window.location.href = `/teacher/students/${studentId}`;
+                      if (typeof window !== 'undefined') {
+                        window.location.href = `/teacher/students/${studentId}`;
+                      } else {
+                        // SSR 환경에서는 Next.js 라우터 사용
+                        router.push(`/teacher/students/${studentId}`);
+                      }
                     }}
                   />
                 ))}
@@ -693,7 +700,14 @@ export default function TeacherDashboardPage() {
                               variant="ghost" 
                               size="sm"
                               className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                              onClick={() => window.location.href = `/teacher/students/${student.id}`}
+                              onClick={() => {
+                                if (typeof window !== 'undefined') {
+                                  window.location.href = `/teacher/students/${student.id}`;
+                                } else {
+                                  // SSR 환경에서는 Next.js 라우터 사용
+                                  router.push(`/teacher/students/${student.id}`);
+                                }
+                              }}
                             >
                               <Eye className="w-4 h-4 mr-1" />
                               상세보기
@@ -768,9 +782,15 @@ export default function TeacherDashboardPage() {
                           variant="outline"
                           className="text-blue-600 border-blue-200 hover:bg-blue-50"
                           onClick={() => {
-                            const surveyUrl = `${window.location.origin}/shared?id=${survey.id}`;
-                            navigator.clipboard.writeText(surveyUrl);
-                            alert('설문 링크가 클립보드에 복사되었습니다!');
+                            if (typeof window !== 'undefined') {
+                              const surveyUrl = `${window.location.origin}/shared?id=${survey.id}`;
+                              navigator.clipboard.writeText(surveyUrl);
+                              alert('설문 링크가 클립보드에 복사되었습니다!');
+                            } else {
+                              // SSR 환경에서는 기본 URL 사용
+                              const surveyUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://your-app-url.com'}/shared?id=${survey.id}`;
+                              alert(`설문 링크: ${surveyUrl}`);
+                            }
                           }}
                         >
                           <FileText className="w-4 h-4 mr-2" />

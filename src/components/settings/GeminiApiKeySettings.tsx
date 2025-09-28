@@ -48,7 +48,7 @@ export function GeminiApiKeySettings() {
 
   // API 키 삭제
   const handleRemove = () => {
-    if (window.confirm('정말로 Gemini API 키를 삭제하시겠습니까?\nSEL 분석 기능을 사용할 수 없게 됩니다.')) {
+    if (typeof window !== 'undefined' && window.confirm('정말로 Gemini API 키를 삭제하시겠습니까?\nSEL 분석 기능을 사용할 수 없게 됩니다.')) {
       removeGeminiApiKey();
       setMessage({ type: 'success', text: 'Gemini API 키가 삭제되었습니다.' });
       setTimeout(() => setMessage(null), 3000);

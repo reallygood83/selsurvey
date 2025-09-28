@@ -531,7 +531,7 @@ export default function StudentManagePage() {
                               size="sm" 
                               className="text-red-600 hover:text-red-700"
                               onClick={() => {
-                                if (window.confirm(`정말로 ${student.name} 학생을 삭제하시겠습니까?\n\n삭제되는 데이터:\n• 학생 프로필 정보\n• 모든 설문 응답 기록 (${student.totalResponses}개)\n• SEL 분석 결과\n\n⚠️ 이 작업은 되돌릴 수 없습니다.`)) {
+                                if (typeof window !== 'undefined' && window.confirm(`정말로 ${student.name} 학생을 삭제하시겠습니까?\n\n삭제되는 데이터:\n• 학생 프로필 정보\n• 모든 설문 응답 기록 (${student.totalResponses}개)\n• SEL 분석 결과\n\n⚠️ 이 작업은 되돌릴 수 없습니다.`)) {
                                   handleDeleteStudent(student);
                                 }
                               }}
@@ -597,7 +597,7 @@ export default function StudentManagePage() {
                             size="sm" 
                             className="text-red-600"
                             onClick={() => {
-                              if (window.confirm('이 설문 응답 기록을 삭제하시겠습니까? 삭제된 기록은 복구할 수 없습니다.')) {
+                              if (typeof window !== 'undefined' && window.confirm('이 설문 응답 기록을 삭제하시겠습니까? 삭제된 기록은 복구할 수 없습니다.')) {
                                 handleDeleteResponse(response.id);
                               }
                             }}

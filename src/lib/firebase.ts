@@ -59,6 +59,6 @@ const allowedDomains = [
   // 추가 도메인이 있다면 여기에 추가
 ];
 
-console.log('🔧 Firebase 초기화 완료 - 현재 도메인:', window?.location?.hostname);
+console.log('🔧 Firebase 초기화 완료 - 현재 도메인:', typeof window !== 'undefined' ? window.location.hostname : 'server-side');
 
 export default app;
