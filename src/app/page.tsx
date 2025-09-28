@@ -7,17 +7,17 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function HomePage() {
-  const { currentUser, userProfile, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     console.log('🏠 메인 페이지 - 상태:', { 
       loading, 
-      currentUser: currentUser?.email, 
+      user: user?.email, 
       userProfile: userProfile?.role 
     });
     
-    if (!loading && currentUser && userProfile) {
+    if (!loading && user && userProfile) {
       console.log('🚀 리다이렉트 실행 - 역할:', userProfile.role);
       // 사용자가 이미 로그인되어 있고 프로필이 있으면 적절한 대시보드로 리다이렉트
       if (userProfile.role === 'teacher') {
@@ -28,7 +28,7 @@ export default function HomePage() {
         router.push('/student/dashboard');
       }
     }
-  }, [currentUser, userProfile, loading, router]);
+  }, [user, userProfile, loading, router]);
 
   if (loading) {
     return (

@@ -17,7 +17,7 @@ import { Loader2, ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SharedSurveyPage() {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const surveyId = searchParams.get('id');
@@ -38,7 +38,7 @@ export default function SharedSurveyPage() {
 
     // 설문 데이터는 로그인 여부와 관계없이 로드
     loadSurveyData();
-  }, [surveyId, currentUser, router]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [surveyId, user, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadSurveyData = async () => {
     if (!surveyId) return;
@@ -69,9 +69,9 @@ export default function SharedSurveyPage() {
       setSurvey(surveyData);
 
       // 로그인된 사용자의 경우 학생 프로필도 로드
-      if (currentUser) {
+      if (user) {
         try {
-          const profileData = await studentService.getStudentProfile(currentUser.uid);
+          const profileData = await studentService.getStudentProfile(user.uid);
           setStudentProfile(profileData);
         } catch (error) {
           console.error('학생 프로필 로드 실패:', error);
@@ -143,7 +143,7 @@ export default function SharedSurveyPage() {
       toast.success('설문 응답이 완료되었습니다!');
       
       // 로그인된 사용자는 완료 페이지로, 비로그인 사용자는 감사 메시지 표시
-      if (currentUser && studentProfile) {
+      if (user && studentProfile) {
         router.push('/student/survey/complete');
       } else {
         // 간단한 완료 메시지 표시 후 설문 페이지 유지

@@ -2,12 +2,12 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 개발 단계: localhost에서 모든 읽기/쓰기 허용
+    // 개발 단계: 모든 인증된 사용자에게 읽기/쓰기 허용
     // 프로덕션 배포 시 이 규칙을 수정해야 합니다!
     
-    // 개발 환경용: localhost에서 모든 읽기/쓰기 허용
+    // 개발 환경용: 모든 인증된 사용자에게 모든 문서 접근 허용
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
     
     // 사용자 프로필 - 인증된 사용자만 자신의 데이터 접근

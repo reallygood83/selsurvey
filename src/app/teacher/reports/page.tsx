@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, ArrowLeft, BarChart3, User, Brain, BookOpen, AlertCircle } from 'lucide-react';
 
 export default function TeacherReportsPage() {
-  const { currentUser, userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const router = useRouter();
   
   const [loading, setLoading] = useState(true);
@@ -32,13 +32,13 @@ export default function TeacherReportsPage() {
   const [reportGenerated, setReportGenerated] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!currentUser || userProfile?.role !== 'teacher') {
+    if (!user || userProfile?.role !== 'teacher') {
       router.push('/auth/login?role=teacher');
       return;
     }
 
     loadTeacherData();
-  }, [currentUser, userProfile, router]);
+  }, [user, userProfile, router]);
 
   useEffect(() => {
     if (selectedClassId) {
@@ -53,10 +53,10 @@ export default function TeacherReportsPage() {
   }, [selectedStudent]);
 
   const loadTeacherData = async () => {
-    if (!currentUser) return;
+    if (!user) return;
 
     try {
-      const teacherClasses = await classService.getClassesByTeacher(currentUser.uid);
+      const teacherClasses = await classService.getClassesByTeacher(user.uid);
       setClasses(teacherClasses);
       
       if (teacherClasses.length > 0) {
@@ -95,10 +95,10 @@ export default function TeacherReportsPage() {
 
       // 최근 설문 응답 조회 - 모든 설문에서 해당 학생의 응답 조회
       try {
-        if (!currentUser) {
+        if (!user) {
           throw new Error('사용자 정보가 없습니다.');
         }
-        const allTeacherSurveys = await surveyService.getSurveysByTeacher(currentUser.uid);
+        const allTeacherSurveys = await surveyService.getSurveysByTeacher(user.uid);
         let studentResponses: SurveyResponse[] = [];
         
         for (const survey of allTeacherSurveys) {

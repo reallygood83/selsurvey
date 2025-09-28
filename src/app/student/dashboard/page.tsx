@@ -16,7 +16,7 @@ import { Loader2, LogOut, Target, FileText, BarChart3, Clock, Heart } from 'luci
 import MoodMeter from '@/components/student/MoodMeter';
 
 export default function StudentDashboardPage() {
-  const { currentUser, userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const router = useRouter();
   
   const [loading, setLoading] = useState(true);
@@ -33,20 +33,20 @@ export default function StudentDashboardPage() {
   }>>([]);
 
   useEffect(() => {
-    if (!currentUser || userProfile?.role !== 'student') {
+    if (!user || userProfile?.role !== 'student') {
       router.push('/auth/login?role=student');
       return;
     }
 
     loadStudentData();
-  }, [currentUser, userProfile, router]);
+  }, [user, userProfile, router]);
 
   const loadStudentData = async () => {
-    if (!currentUser || !userProfile) return;
+    if (!user || !userProfile) return;
 
     try {
       // 학생 프로필 정보 로드
-      const profile = await studentService.getStudentProfile(currentUser.uid);
+      const profile = await studentService.getStudentProfile(user.uid);
       setStudentProfile(profile);
 
       if (profile) {

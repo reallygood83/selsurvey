@@ -34,7 +34,7 @@ interface StudentDetailPageProps {
 }
 
 export default function StudentDetailPage({ params }: StudentDetailPageProps) {
-  const { currentUser, userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState<StudentProfile | null>(null);
   const [analyses, setAnalyses] = useState<SELAnalysis[]>([]);
@@ -73,10 +73,10 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
   };
 
   useEffect(() => {
-    if (currentUser && userProfile?.role === 'teacher') {
+    if (user && userProfile?.role === 'teacher') {
       loadStudentData();
     }
-  }, [currentUser, userProfile, params.studentId]);
+  }, [user, userProfile, params.studentId]);
 
   const loadStudentData = async () => {
     setLoading(true);
@@ -169,7 +169,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
     ];
   };
 
-  if (!currentUser || userProfile?.role !== 'teacher') {
+  if (!user || userProfile?.role !== 'teacher') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">

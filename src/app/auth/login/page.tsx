@@ -1,214 +1,314 @@
-// 로그인 페이지 - 역할 선택 포함
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import Link from 'next/link';
+import { useAuthFlow } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Chrome, 
+  Users, 
+  BookOpen, 
+  AlertCircle, 
+  Loader2, 
+  CheckCircle,
+  Shield,
+  Globe,
+  RefreshCw
+} from 'lucide-react';
 
-function LoginContent() {
-  const [selectedRole, setSelectedRole] = useState<'teacher' | 'student' | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  const { signInWithGoogle, currentUser, userProfile } = useAuth();
+type UserRole = 'teacher' | 'student' | null;
+
+export default function LoginPage() {
+  const { user } = useAuth();
+  const { login, logout, isLoading, error: authError, isContentBlocked, clearError } = useAuthFlow();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [selectedRole, setSelectedRole] = useState<UserRole>(null);
+  const [showContentBlockerWarning, setShowContentBlockerWarning] = useState(false);
 
-  useEffect(() => {
-    // URL 파라미터에서 role 가져오기
-    const roleParam = searchParams.get('role');
-    if (roleParam === 'teacher' || roleParam === 'student') {
-      setSelectedRole(roleParam);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    console.log('🔐 로그인 페이지 - 상태:', { 
-      currentUser: currentUser?.email, 
-      userProfile: userProfile?.role 
-    });
-    
-    // 이미 로그인된 사용자는 적절한 대시보드로 리다이렉트
-    if (currentUser && userProfile) {
-      console.log('🔄 로그인 페이지에서 리다이렉트 - 역할:', userProfile.role);
-      if (userProfile.role === 'teacher') {
-        console.log('👨‍🏫 로그인 페이지에서 교사 대시보드로 이동');
-        router.push('/teacher/dashboard');
-      } else {
-        console.log('👨‍🎓 로그인 페이지에서 학생 대시보드로 이동');
-        router.push('/student/dashboard');
-      }
-    }
-  }, [currentUser, userProfile, router]);
-
-  const handleGoogleLogin = async () => {
-    if (!selectedRole) {
-      setError('먼저 역할을 선택해주세요.');
-      return;
-    }
-
-    console.log('🔑 Google 로그인 시작 - 선택된 역할:', selectedRole);
-    setLoading(true);
-    setError(null);
-
-    try {
-      await signInWithGoogle(selectedRole);
-      console.log('✅ Google 로그인 성공 - 역할:', selectedRole);
-      // AuthContext에서 자동으로 프로필 생성 및 역할 설정됨
-      // useEffect에서 리다이렉트 처리
-    } catch (error) {
-      console.error('❌ 로그인 오류:', error);
-      setError('로그인에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setLoading(false);
+  // Keyboard navigation support
+  const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      action();
     }
   };
 
+  // Content blocker detection
+  useEffect(() => {
+    if (isContentBlocked) {
+      setShowContentBlockerWarning(true);
+    }
+  }, [isContentBlocked]);
+
+  const handleRoleSelect = (role: 'teacher' | 'student') => {
+    setSelectedRole(role);
+    clearError();
+  };
+
+  // Handle Google login with accessibility support
+  const handleGoogleLogin = async (role: 'teacher' | 'student') => {
+    if (!role) return;
+    
+    clearError();
+    await login(role);
+  };
+
+  // Add isAuthenticating state for progress indication
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  // Show comprehensive troubleshooting guide
+  const showTroubleshootingGuide = () => {
+    alert(`🔧 로그인 문제 해결 가이드
+
+1️⃣ 광고 차단기 비활성화
+   • 브라우저 확장 프로그램에서 광고 차단기를 일시적으로 끄세요
+   • 주로 uBlock Origin, AdBlock Plus 등이 영향을 줍니다
+
+2️⃣ 팝업 차단 해제
+   • 브라우저 주소창 오른쪽의 팝업 차단 아이콘을 클릭하여 허용
+   • 또는 브라우저 설정 > 개인정보 및 보안 > 팝업 및 리디렉션에서 허용
+
+3️⃣ 다른 브라우저 시도
+   • Chrome 권장 (가장 높은 호환성)
+   • Safari, Firefox, Edge도 지원
+
+4️⃣ 시크릿 모드 사용
+   • Ctrl+Shift+N (Windows) 또는 Cmd+Shift+N (Mac)
+   • 확장 프로그램이 자동으로 비활성화됩니다
+
+5️⃣ 네트워크 확인
+   • 인터넷 연결이 정상적인지 확인
+   • 회사/학교 네트워크의 방화벽일 수 있습니다
+
+문제가 지속되면 관리자에게 문의하세요. 📧`);
+  };
+
+  const roleCards = [
+    {
+      role: 'teacher' as const,
+      title: '선생님',
+      description: '학생들의 감정 상태를 모니터링하고 분석합니다',
+      icon: Users,
+      color: 'blue',
+      features: ['학생 감정 분석', '리포트 생성', '클래스 관리', '실시간 모니터링']
+    },
+    {
+      role: 'student' as const,
+      title: '학생',
+      description: '나의 감정 상태를 기록하고 피드백을 받습니다',
+      icon: BookOpen,
+      color: 'green',
+      features: ['감정 일기 작성', '피드백 받기', '진행 상황 추적', '개인화된 통계']
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="text-center">
-          <Link href="/" className="text-2xl font-bold text-gray-900 hover:text-gray-700">
-            SEL 감정분석 플랫폼
-          </Link>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            플랫폼에 로그인
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            역할을 선택하고 Google 계정으로 로그인하세요
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <Card className="py-8 px-4 sm:px-10">
-          <CardContent className="space-y-6">
-            {/* 역할 선택 */}
-            <div>
-              <Label className="text-base font-medium text-gray-900">
-                로그인 유형을 선택하세요
-              </Label>
-              <p className="text-sm leading-5 text-gray-500 mt-1">
-                교사 또는 학생 중 해당하는 역할을 선택해주세요.
-              </p>
-              <RadioGroup 
-                value={selectedRole || ''} 
-                onValueChange={(value) => setSelectedRole(value as 'teacher' | 'student')}
-                className="mt-4"
-              >
-                <Card className={`relative cursor-pointer transition-colors ${
-                  selectedRole === 'teacher' 
-                    ? 'border-primary bg-blue-50' 
-                    : 'hover:bg-gray-50'
-                }`}>
-                  <CardContent className="flex items-center space-x-3 p-4">
-                    <RadioGroupItem value="teacher" id="teacher" />
-                    <div className="flex-1">
-                      <Label htmlFor="teacher" className="text-sm font-medium cursor-pointer">
-                        교사 (Teacher)
-                      </Label>
-                      <p className="text-sm text-gray-500">
-                        학급 관리, 학생 모니터링, 상담 데이터 분석
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className={`relative cursor-pointer transition-colors ${
-                  selectedRole === 'student' 
-                    ? 'border-primary bg-blue-50' 
-                    : 'hover:bg-gray-50'
-                }`}>
-                  <CardContent className="flex items-center space-x-3 p-4">
-                    <RadioGroupItem value="student" id="student" />
-                    <div className="flex-1">
-                      <Label htmlFor="student" className="text-sm font-medium cursor-pointer">
-                        학생 (Student)
-                      </Label>
-                      <p className="text-sm text-gray-500">
-                        감정 설문 참여, 개인 상담 데이터 확인
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </RadioGroup>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4" role="main" aria-label="로그인 페이지">
+      <div className="w-full max-w-4xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 mb-4">
+            <div 
+              className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center"
+              role="img"
+              aria-label="SEL 감정분석 플랫폼 로고"
+            >
+              <Shield className="w-6 h-6 text-white" />
             </div>
+            <h1 className="text-3xl font-bold text-gray-900">SEL 감정분석 플랫폼</h1>
+          </div>
+          <p className="text-gray-600 text-lg">감정 인식과 분석을 위한 안전한 공간</p>
+        </div>
 
-            {/* 에러 메시지 */}
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+        {/* Content Blocker Warning */}
+        {showContentBlockerWarning && (
+          <Alert 
+            className="mb-6 border-amber-200 bg-amber-50"
+            role="alert"
+            aria-live="polite"
+          >
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-800">
+              <div className="flex items-center justify-between">
+                <span>콘텐츠 차단기가 감지되었습니다. 로그인에 문제가 있을 수 있습니다.</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={showTroubleshootingGuide}
+                  className="ml-4 border-amber-300 text-amber-700 hover:bg-amber-100"
+                  aria-label="문제 해결 방법 보기"
+                >
+                  해결 방법 보기
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Error Alert */}
+        {authError && (
+          <Alert 
+            className="mb-6 border-red-200 bg-red-50"
+            role="alert"
+            aria-live="assertive"
+          >
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800">{authError}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Role Selection */}
+        <Card className="mb-6 border-gray-200 shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle className="text-xl">사용자 유형을 선택하세요</CardTitle>
+            <CardDescription>당신의 역할에 맞는 기능을 제공합니다</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-4">
+              {roleCards.map((card) => {
+                const Icon = card.icon;
+                const isSelected = selectedRole === card.role;
+                
+                return (
+                  <button
+                    key={card.role}
+                    onClick={() => handleRoleSelect(card.role)}
+                    onKeyDown={(e) => handleKeyDown(e, () => handleRoleSelect(card.role))}
+                    className={`p-6 rounded-lg border-2 transition-all duration-200 text-left ${
+                      isSelected
+                        ? `border-${card.color}-500 bg-${card.color}-50 shadow-md`
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                    }`}
+                    disabled={isLoading}
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={`${card.title} 역할 선택`}
+                    tabIndex={0}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={`p-3 rounded-lg ${
+                        isSelected ? `bg-${card.color}-500` : 'bg-gray-100'
+                      }`}>
+                        <Icon className={`w-6 h-6 ${
+                          isSelected ? 'text-white' : 'text-gray-600'
+                        }`} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg mb-1">{card.title}</h3>
+                        <p className="text-gray-600 text-sm mb-3">{card.description}</p>
+                        <div className="space-y-1">
+                          {card.features.map((feature, index) => (
+                            <div key={index} className="flex items-center gap-2 text-xs text-gray-500">
+                              <CheckCircle className="w-3 h-3 text-green-500" />
+                              <span>{feature}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="flex items-center">
+                          <Badge variant="secondary" className={`bg-${card.color}-500 text-white`}>
+                            선택됨
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Google Login */}
+        <Card className="border-gray-200 shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle>Google 계정으로 로그인</CardTitle>
+            <CardDescription>
+              {selectedRole 
+                ? `${selectedRole === 'teacher' ? '선생님' : '학생'}으로 로그인합니다`
+                : '사용자 유형을 먼저 선택하세요'
+              }
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Loading Progress */}
+            {isLoading && (
+              <div className="space-y-2">
+                <Progress value={isAuthenticating ? 75 : 25} className="w-full" />
+                <p className="text-sm text-center text-gray-600">
+                  {isAuthenticating ? 'Google 인증 진행 중...' : '로그인 준비 중...'}
+                </p>
+              </div>
             )}
 
-            {/* Google 로그인 버튼 */}
+            {/* Google Login Button */}
             <Button
-              onClick={handleGoogleLogin}
-              disabled={!selectedRole || loading}
-              className="w-full"
-              size="lg"
+              onClick={() => selectedRole && handleGoogleLogin(selectedRole)}
+              disabled={!selectedRole || isLoading}
+              className="w-full h-12 text-base font-medium"
+              variant="default"
+              aria-label={`${selectedRole === 'teacher' ? '선생님' : selectedRole === 'student' ? '학생' : ''}로 Google 계정으로 로그인`}
+              aria-busy={isLoading}
             >
-              {loading ? (
+              {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   로그인 중...
                 </>
               ) : (
                 <>
-                  <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                  </svg>
-                  Google로 로그인
+                  <Chrome className="mr-2 h-5 w-5" />
+                  Google로 계속하기
                 </>
               )}
             </Button>
 
-            {/* 추가 정보 */}
-            <div className="text-center text-sm text-muted-foreground space-y-2">
-              <p>계정이 없으신가요? Google 로그인 시 자동으로 계정이 생성됩니다.</p>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-left">
-                <p className="text-amber-800 font-medium text-xs">로그인이 안 되나요?</p>
-                <p className="text-amber-700 text-xs mt-1">
-                  광고 차단기(AdBlock, uBlock 등)를 일시적으로 비활성화하거나 
-                  다른 브라우저에서 시도해보세요.
-                </p>
-              </div>
+            {/* Security Notice */}
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-500" role="status">
+              <Shield className="h-3 w-3" />
+              <span>보안된 Google OAuth 2.0 인증</span>
             </div>
 
-            {/* 홈으로 돌아가기 */}
-            <div className="text-center">
-              <Link 
-                href="/" 
-                className="text-sm text-primary hover:text-primary/80 transition-colors"
+            <Separator />
+
+            {/* Additional Help */}
+            <div className="text-center space-y-2">
+              <Button
+                variant="link"
+                size="sm"
+                onClick={showTroubleshootingGuide}
+                className="text-gray-600 hover:text-gray-800"
+                aria-label="로그인 문제 해결 가이드 보기"
               >
-                ← 홈으로 돌아가기
-              </Link>
+                로그인 문제가 있으신가요?
+              </Button>
+              
+              <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
+                <div className="flex items-center gap-1">
+                  <Globe className="h-3 w-3" />
+                  <span>한국어 지원</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Shield className="h-3 w-3" />
+                  <span>개인정보 보호</span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Footer */}
+        <div className="text-center mt-8 text-sm text-gray-500">
+          <p>© 2024 SEL 감정분석 플랫폼. 모든 권리 보유.</p>
+        </div>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    }>
-      <LoginContent />
-    </Suspense>
   );
 }

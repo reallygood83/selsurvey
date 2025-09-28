@@ -16,7 +16,7 @@ import { ClassMoodOverview } from '@/components/teacher/ClassMoodOverview';
 import { StudentEmotionChart } from '@/components/teacher/StudentEmotionChart';
 
 export default function TeacherDashboardPage() {
-  const { currentUser, userProfile, logout } = useAuth();
+  const { user, userProfile, logout } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -32,13 +32,13 @@ export default function TeacherDashboardPage() {
   });
 
   useEffect(() => {
-    if (currentUser && userProfile?.role === 'teacher' && userProfile.schoolInfo?.classCode) {
+    if (user && userProfile?.role === 'teacher' && userProfile.schoolInfo?.classCode) {
       loadDashboardData();
     }
-  }, [currentUser, userProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, userProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadDashboardData = async () => {
-    if (!currentUser || !userProfile?.schoolInfo?.classCode) return;
+    if (!user || !userProfile?.schoolInfo?.classCode) return;
 
     setLoading(true);
     try {
@@ -56,7 +56,7 @@ export default function TeacherDashboardPage() {
         let allResponses: SurveyResponse[] = [];
         
         // 각 설문에 대한 응답들을 수집
-        const surveysData = await surveyService.getSurveysByTeacher(currentUser.uid);
+        const surveysData = await surveyService.getSurveysByTeacher(user.uid);
         console.log('🔍 교사 설문 목록:', surveysData.length, '개');
         
         for (const survey of surveysData) {
@@ -117,7 +117,7 @@ export default function TeacherDashboardPage() {
     }
   };
 
-  if (!currentUser || userProfile?.role !== 'teacher') {
+  if (!user || userProfile?.role !== 'teacher') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">

@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle, Info, UserPlus } from 'lucide-react';
 
 export default function StudentJoinPage() {
-  const { currentUser, userProfile, updateUserProfile } = useAuth();
+  const { user, userProfile, updateUserProfile } = useAuth();
   const router = useRouter();
   
   const [loading, setLoading] = useState(false);
@@ -60,7 +60,7 @@ export default function StudentJoinPage() {
   };
 
   const handleJoinClass = async () => {
-    if (!currentUser || !userProfile || !classInfo) {
+    if (!user || !userProfile || !classInfo) {
       setError('로그인 정보 또는 반 정보를 확인할 수 없습니다.');
       return;
     }
@@ -76,7 +76,7 @@ export default function StudentJoinPage() {
     try {
       // 학생 프로필 생성
       const studentProfile: Omit<StudentProfile, 'id'> = {
-        userId: currentUser.uid,
+        userId: user.uid,
         name: studentName.trim(),
         grade: classInfo.grade,
         classCode: classInfo.classCode,
@@ -117,7 +117,7 @@ export default function StudentJoinPage() {
     }
   };
 
-  if (!currentUser || userProfile?.role !== 'student') {
+  if (!user || userProfile?.role !== 'student') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <Card className="w-full max-w-md">

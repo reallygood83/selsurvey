@@ -46,7 +46,7 @@ const completionMessages = {
 };
 
 export default function SurveyCompletePage() {
-  const { currentUser, userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const surveyType = searchParams.get('type') as keyof typeof completionMessages;
@@ -54,7 +54,7 @@ export default function SurveyCompletePage() {
   const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
-    if (!currentUser || userProfile?.role !== 'student') {
+    if (!user || userProfile?.role !== 'student') {
       router.push('/auth/login?role=student');
       return;
     }
@@ -68,7 +68,7 @@ export default function SurveyCompletePage() {
     setShowConfetti(true);
     const timer = setTimeout(() => setShowConfetti(false), 3000);
     return () => clearTimeout(timer);
-  }, [currentUser, userProfile, router, surveyType]);
+  }, [user, userProfile, router, surveyType]);
 
   if (!surveyType || !completionMessages[surveyType]) {
     return null;

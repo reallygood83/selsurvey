@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Users, Calendar, Clock, Eye, Edit, Trash2, AlertCircle } from 'lucide-react';
 
 export default function SurveyViewPage() {
-  const { currentUser, userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const router = useRouter();
   const params = useParams();
   const surveyId = params?.surveyId as string;
@@ -20,10 +20,10 @@ export default function SurveyViewPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (surveyId && currentUser) {
+    if (surveyId && user) {
       loadSurveyData();
     }
-  }, [surveyId, currentUser]);
+  }, [surveyId, user]);
 
   const loadSurveyData = async () => {
     try {
@@ -38,7 +38,7 @@ export default function SurveyViewPage() {
       }
 
       // 권한 확인
-      if (surveyData.teacherId !== currentUser?.uid) {
+      if (surveyData.teacherId !== user?.uid) {
         setError('이 설문을 조회할 권한이 없습니다.');
         return;
       }
@@ -51,7 +51,7 @@ export default function SurveyViewPage() {
       setResponses(surveyResponses);
 
       // 클래스 정보 로드
-      const classes = await classService.getClassesByTeacher(currentUser!.uid);
+      const classes = await classService.getClassesByTeacher(user!.uid);
       const targetClass = classes.find((c: ClassInfo) => c.classCode === surveyData.classCode);
       setClassInfo(targetClass || null);
     } catch (error) {

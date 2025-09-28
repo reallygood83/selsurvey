@@ -1,6 +1,7 @@
 'use client';
 
-import { withAuth } from '@/contexts/AuthContext';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { GeminiApiKeySettings } from '@/components/settings/GeminiApiKeySettings';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,8 +13,29 @@ import { User, Palette, Globe, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 function TeacherSettingsPage() {
-  const { currentUser, userProfile } = useAuth();
+  const router = useRouter();
+  const { user, userProfile, loading } = useAuth();
   const { theme, setTheme, language, setLanguage } = useSettings();
+
+  // Redirect if not authenticated or not a teacher
+  useEffect(() => {
+    if (!loading && (!user || userProfile?.role !== 'teacher')) {
+      router.push('/auth/login');
+    }
+  }, [user, userProfile, loading, router]);
+
+  // Show loading state while checking authentication
+  if (loading || !user || userProfile?.role !== 'teacher') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">인증 확인 중...</p>
+        </div>
+      </div>
+    );
+  }
+  // Settings are already imported above
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -55,7 +77,7 @@ function TeacherSettingsPage() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium">이메일</Label>
-                  <p className="text-gray-900">{currentUser?.email}</p>
+                  <p className="text-gray-900">{user?.email}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">역할</Label>
@@ -166,4 +188,4 @@ function TeacherSettingsPage() {
   );
 }
 
-export default withAuth(TeacherSettingsPage);
+export default TeacherSettingsPage;

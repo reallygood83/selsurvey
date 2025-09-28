@@ -44,10 +44,19 @@ export const storage = getStorage(app);
 //   }
 // }
 
-// Google Auth Provider
+// Google OAuth Provider 설정
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
-  prompt: 'select_account'
+  prompt: 'select_account',
+  display: 'popup'
+  // redirect_uri는 Firebase가 자동으로 처리하도록 함
+});
+
+// 인증 설정 디버깅
+console.log('🔧 Firebase Auth 설정:', {
+  apiKey: firebaseConfig.apiKey?.substring(0, 10) + '...',
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId
 });
 
 // 개발/프로덕션 환경별 허용 도메인 설정

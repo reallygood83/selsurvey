@@ -29,7 +29,7 @@ interface StudentWithResponses extends StudentProfile {
 }
 
 export default function StudentManagePage() {
-  const { currentUser, userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [students, setStudents] = useState<StudentWithResponses[]>([]);
@@ -39,13 +39,13 @@ export default function StudentManagePage() {
   const [showResponsesDialog, setShowResponsesDialog] = useState(false);
 
   useEffect(() => {
-    if (currentUser && userProfile?.role === 'teacher' && userProfile.schoolInfo?.classCode) {
+    if (user && userProfile?.role === 'teacher' && userProfile.schoolInfo?.classCode) {
       loadStudentData();
     }
-  }, [currentUser, userProfile]);
+  }, [user, userProfile]);
 
   const loadStudentData = async () => {
-    if (!currentUser || !userProfile?.schoolInfo?.classCode) return;
+    if (!user || !userProfile?.schoolInfo?.classCode) return;
 
     setLoading(true);
     try {
@@ -81,7 +81,7 @@ export default function StudentManagePage() {
             name: '테스트 학생1',
             grade: 1 as Grade,
             classCode: 'TEST001',
-            teacherId: currentUser.uid,
+            teacherId: user.uid,
             joinedAt: new Date(),
             isActive: true,
             responseHistory: [],
@@ -96,7 +96,7 @@ export default function StudentManagePage() {
             name: '테스트 학생2',
             grade: 1 as Grade,
             classCode: 'TEST001',
-            teacherId: currentUser.uid,
+            teacherId: user.uid,
             joinedAt: new Date(),
             isActive: true,
             responseHistory: [],
@@ -118,7 +118,7 @@ export default function StudentManagePage() {
           schoolName: '테스트 학교',
           grade: 1 as Grade,
           className: '1반',
-          teacherId: currentUser.uid,
+          teacherId: user.uid,
           teacherName: '테스트 교사',
           students: ['test1', 'test2'],
           studentCount: 2,
@@ -133,7 +133,7 @@ export default function StudentManagePage() {
             name: '테스트 학생1',
             grade: 1 as Grade,
             classCode: 'TEST001',
-            teacherId: currentUser.uid,
+            teacherId: user.uid,
             joinedAt: new Date(),
             isActive: true,
             responseHistory: [],
@@ -148,7 +148,7 @@ export default function StudentManagePage() {
             name: '테스트 학생2',
             grade: 1 as Grade,
             classCode: 'TEST001',
-            teacherId: currentUser.uid,
+            teacherId: user.uid,
             joinedAt: new Date(),
             isActive: true,
             responseHistory: [],
@@ -171,7 +171,7 @@ export default function StudentManagePage() {
         schoolName: '테스트 학교',
         grade: 1 as Grade,
         className: '1반',
-        teacherId: currentUser.uid,
+        teacherId: user.uid,
         teacherName: '테스트 교사',
         students: ['test1', 'test2'],
         studentCount: 2,
@@ -186,7 +186,7 @@ export default function StudentManagePage() {
           name: '테스트 학생1',
           grade: 1,
           classCode: 'TEST001',
-          teacherId: currentUser.uid,
+          teacherId: user.uid,
           joinedAt: new Date(),
           isActive: true,
           responseHistory: [],
@@ -202,7 +202,7 @@ export default function StudentManagePage() {
   };
 
   const handleAddStudent = async () => {
-    if (!currentUser || !classInfo || !newStudentName.trim()) {
+    if (!user || !classInfo || !newStudentName.trim()) {
       toast.error('학생 이름을 입력해주세요.');
       return;
     }
@@ -214,7 +214,7 @@ export default function StudentManagePage() {
         name: newStudentName.trim(),
         grade: classInfo.grade,
         classCode: classInfo.classCode,
-        teacherId: currentUser.uid,
+        teacherId: user.uid,
         joinedAt: new Date(),
         isActive: true,
         responseHistory: [],
@@ -239,7 +239,7 @@ export default function StudentManagePage() {
   };
 
   const handleDeleteStudent = async (student: StudentWithResponses) => {
-    if (!currentUser) return;
+    if (!user) return;
 
     try {
       // 학생의 모든 설문 응답 삭제
@@ -277,7 +277,7 @@ export default function StudentManagePage() {
     setShowResponsesDialog(true);
   };
 
-  if (!currentUser || userProfile?.role !== 'teacher') {
+  if (!user || userProfile?.role !== 'teacher') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">

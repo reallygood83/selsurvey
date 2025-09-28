@@ -199,7 +199,7 @@ const monthlyQuestions = [
 ];
 
 export default function StudentSurveyPage() {
-  const { currentUser, userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const router = useRouter();
   const params = useParams();
   const surveyType = params.type as string;
@@ -221,19 +221,19 @@ export default function StudentSurveyPage() {
   }>>([]);
 
   useEffect(() => {
-    if (!currentUser || userProfile?.role !== 'student') {
+    if (!user || userProfile?.role !== 'student') {
       router.push('/auth/login?role=student');
       return;
     }
 
     loadStudentProfile();
-  }, [currentUser, userProfile, router]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, userProfile, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadStudentProfile = async () => {
-    if (!currentUser) return;
+    if (!user) return;
 
     try {
-      const profile = await studentService.getStudentProfile(currentUser.uid);
+      const profile = await studentService.getStudentProfile(user.uid);
       if (!profile) {
         router.push('/student/join');
         return;
@@ -286,7 +286,7 @@ export default function StudentSurveyPage() {
   };
 
   const handleSubmit = async () => {
-    if (!studentProfile || !currentUser) return;
+    if (!studentProfile || !user) return;
 
     setSubmitting(true);
 

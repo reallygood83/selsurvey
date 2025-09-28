@@ -16,7 +16,7 @@ interface QuestionForm {
 }
 
 export default function EditSurveyPage() {
-  const { currentUser, userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const router = useRouter();
   const params = useParams();
   const surveyId = params?.surveyId as string;
@@ -32,10 +32,10 @@ export default function EditSurveyPage() {
   const [questions, setQuestions] = useState<QuestionForm[]>([]);
 
   useEffect(() => {
-    if (surveyId && currentUser) {
+    if (surveyId && user) {
       loadSurvey();
     }
-  }, [surveyId, currentUser]);
+  }, [surveyId, user]);
 
   const loadSurvey = async () => {
     try {
@@ -49,7 +49,7 @@ export default function EditSurveyPage() {
       }
 
       // 권한 확인
-      if (surveyData.teacherId !== currentUser?.uid) {
+      if (surveyData.teacherId !== user?.uid) {
         setError('이 설문을 수정할 권한이 없습니다.');
         return;
       }

@@ -37,7 +37,7 @@ import { TeacherTooltip, SELDomainTooltip, QuestionTypeTooltip, SurveyTooltip } 
 import SurveyValidator from '@/components/teacher/SurveyValidator';
 
 export default function CreateSurveyPage() {
-  const { currentUser, userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'template' | 'ai' | 'custom'>('template');
@@ -140,7 +140,7 @@ export default function CreateSurveyPage() {
       return;
     }
 
-    if (!currentUser?.uid || !userProfile?.schoolInfo?.classCode) {
+    if (!user?.uid || !userProfile?.schoolInfo?.classCode) {
       alert('교사 정보 또는 반 정보가 없습니다. 로그인을 다시 확인해주세요.');
       return;
     }
@@ -154,7 +154,7 @@ export default function CreateSurveyPage() {
     try {
       const surveyData: Omit<Survey, 'id'> = {
         ...survey as Survey,
-        teacherId: currentUser.uid,
+        teacherId: user.uid,
         classCode: userProfile.schoolInfo.classCode,
         isActive: publish,
         createdAt: new Date(),
@@ -228,12 +228,12 @@ export default function CreateSurveyPage() {
       }
     };
     
-    if (currentUser) {
+    if (user) {
       loadUserApiKey();
     }
-  }, [currentUser]);
+  }, [user]);
 
-  if (!currentUser || userProfile?.role !== 'teacher') {
+  if (!user || userProfile?.role !== 'teacher') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">

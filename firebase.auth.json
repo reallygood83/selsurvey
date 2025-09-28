@@ -1,0 +1,16 @@
+{
+  "authorizedDomains": [
+    "localhost",
+    "localhost:3000",
+    "goodmind-six.vercel.app",
+    "gohard-9a1f4.firebaseapp.com",
+    "gohard-9a1f4.web.app"
+  ],
+  "oauth": {
+    "redirectUrls": [
+      "http://localhost:3000/auth/callback",
+      "https://goodmind-six.vercel.app/auth/callback",
+      "https://gohard-9a1f4.firebaseapp.com/__/auth/handler"
+    ]
+  }
+}

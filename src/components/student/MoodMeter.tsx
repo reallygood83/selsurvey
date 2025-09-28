@@ -19,16 +19,16 @@ export default function MoodMeter() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingToday, setIsLoadingToday] = useState(true);
   
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   // 오늘의 기분 로드
   useEffect(() => {
     const loadTodayMood = async () => {
-      if (!currentUser) return;
+      if (!user) return;
       
       try {
-        const mood = await moodService.getTodayMood(currentUser.uid);
+        const mood = await moodService.getTodayMood(user.uid);
         setTodayMood(mood);
         if (mood) {
           const moodOption = moodOptions.find(option => option.id === mood.moodId);
@@ -43,17 +43,17 @@ export default function MoodMeter() {
     };
 
     loadTodayMood();
-  }, [currentUser]);
+  }, [user]);
 
   // 기분 저장 또는 업데이트
   const handleSaveMood = async () => {
-    if (!selectedMood || !currentUser) return;
+    if (!selectedMood || !user) return;
 
     setIsLoading(true);
     try {
       const today = new Date().toISOString().split('T')[0];
       const moodData = {
-        studentId: currentUser.uid,
+        studentId: user.uid,
         date: today,
         moodId: selectedMood.id,
         emotion: selectedMood.emotion,
@@ -66,7 +66,7 @@ export default function MoodMeter() {
 
       if (todayMood) {
         // 기존 기분 업데이트
-        await moodService.updateTodayMood(currentUser.uid, {
+        await moodService.updateTodayMood(user.uid, {
           moodId: selectedMood.id,
           emotion: selectedMood.emotion,
           emoji: selectedMood.emoji,

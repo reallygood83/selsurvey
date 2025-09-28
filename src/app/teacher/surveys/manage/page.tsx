@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Trash2, Edit, Eye, Users, Calendar, AlertCircle } from 'lucide-react';
 
 export default function SurveyManagementPage() {
-  const { currentUser, userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const router = useRouter();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,15 +16,15 @@ export default function SurveyManagementPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
-    if (currentUser) {
+    if (user) {
       loadSurveys();
     }
-  }, [currentUser]);
+  }, [user]);
 
   const loadSurveys = async () => {
     try {
       setLoading(true);
-      const teacherSurveys = await surveyService.getSurveysByTeacher(currentUser!.uid);
+      const teacherSurveys = await surveyService.getSurveysByTeacher(user!.uid);
       setSurveys(teacherSurveys);
 
       // 각 설문의 응답 개수 조회

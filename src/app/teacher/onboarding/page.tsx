@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, BookOpen, Info, CheckCircle } from 'lucide-react';
 
 export default function TeacherOnboardingPage() {
-  const { currentUser, userProfile, updateUserProfile } = useAuth();
+  const { user, userProfile, updateUserProfile } = useAuth();
   const router = useRouter();
   
   const [loading, setLoading] = useState(false);
@@ -44,7 +44,7 @@ export default function TeacherOnboardingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!currentUser || !userProfile) {
+    if (!user || !userProfile) {
       setError('로그인 정보를 확인할 수 없습니다.');
       return;
     }
@@ -64,8 +64,8 @@ export default function TeacherOnboardingPage() {
       // 반 정보 생성
       const classInfo: Omit<ClassInfo, 'id'> = {
         classCode,
-        teacherId: currentUser.uid,
-        teacherName: userProfile.displayName,
+        teacherId: user.uid,
+        teacherName: userProfile.displayName || '교사',
         schoolName: formData.schoolName.trim(),
         grade: formData.grade,
         className: formData.className.trim(),
@@ -85,7 +85,7 @@ export default function TeacherOnboardingPage() {
           grade: formData.grade,
           className: formData.className.trim(),
           classCode,
-          teacherId: currentUser.uid
+          teacherId: user.uid
         }
       });
 
@@ -100,7 +100,7 @@ export default function TeacherOnboardingPage() {
     }
   };
 
-  if (!currentUser || userProfile?.role !== 'teacher') {
+  if (!user || userProfile?.role !== 'teacher') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <Card className="w-full max-w-md">
