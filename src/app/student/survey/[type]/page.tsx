@@ -208,8 +208,17 @@ export default function StudentSurveyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [responses, setResponses] = useState<Record<string, any>>({});
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [responses, setResponses] = useState<Record<string, string | number>>({});
+  const [questions, setQuestions] = useState<Array<{
+    id: string;
+    question: string;
+    type: string;
+    options?: string[];
+    labels?: string[];
+    min?: number;
+    max?: number;
+    placeholder?: string;
+  }>>([]);
 
   useEffect(() => {
     if (!currentUser || userProfile?.role !== 'student') {
@@ -218,7 +227,7 @@ export default function StudentSurveyPage() {
     }
 
     loadStudentProfile();
-  }, [currentUser, userProfile, router]);
+  }, [currentUser, userProfile, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadStudentProfile = async () => {
     if (!currentUser) return;
@@ -255,7 +264,7 @@ export default function StudentSurveyPage() {
     }
   };
 
-  const handleAnswer = (questionId: string, answer: any) => {
+  const handleAnswer = (questionId: string, answer: string | number) => {
     setResponses(prev => ({
       ...prev,
       [questionId]: answer
@@ -282,28 +291,33 @@ export default function StudentSurveyPage() {
     setSubmitting(true);
 
     try {
-      // 설문 응답 저장
+      // 설문 응답 저장 - responses를 배열 형태로 변환
+      const responsesArray = Object.entries(responses).map(([questionId, answer]) => ({
+        questionId,
+        answer,
+        domain: 'selfAwareness' as const // 기본 SEL 도메인으로 설정
+      }));
+
       const surveyResponse: Omit<SurveyResponse, 'id'> = {
+        surveyId: `${surveyType}-survey`, // 기본 설문 ID
         studentId: studentProfile.id,
-        studentName: studentProfile.name,
-        teacherId: studentProfile.teacherId,
-        classCode: studentProfile.classCode,
         surveyType: surveyType as 'daily' | 'weekly' | 'monthly',
-        responses,
+        responses: responsesArray,
         submittedAt: new Date(),
-        grade: studentProfile.grade
+        grade: studentProfile.grade,
+        classCode: studentProfile.classCode
       };
 
-      const responseId = await surveyService.createSurveyResponse(surveyResponse);
+      await surveyService.createSurveyResponse(surveyResponse);
 
       // 월간 설문인 경우 AI 분석 수행
       if (surveyType === 'monthly') {
         try {
           const previousResponses = await surveyService.getStudentResponses(studentProfile.id, 10);
           const analysisResult = await analyzeSELData(
-            studentProfile,
+            studentProfile as unknown as Record<string, unknown>,
             responses,
-            previousResponses
+            previousResponses as unknown as Record<string, unknown>
           );
 
           // 분석 결과를 학생 프로필에 추가
@@ -324,14 +338,23 @@ export default function StudentSurveyPage() {
     }
   };
 
-  const renderQuestion = (question: any) => {
+  const renderQuestion = (question: {
+    id: string;
+    question: string;
+    type: string;
+    options?: string[];
+    labels?: string[];
+    min?: number;
+    max?: number;
+    placeholder?: string;
+  }) => {
     const currentAnswer = responses[question.id];
 
     if (question.type === 'emoji_scale') {
       return (
         <div className="space-y-6">
           <div className="flex justify-center space-x-4">
-            {question.options.map((emoji: string, index: number) => (
+            {question.options?.map((emoji: string, index: number) => (
               <button
                 key={index}
                 onClick={() => handleAnswer(question.id, index + 1)}
@@ -346,7 +369,7 @@ export default function StudentSurveyPage() {
             ))}
           </div>
           <div className="flex justify-center space-x-4 text-xs text-gray-500">
-            {question.labels.map((label: string, index: number) => (
+            {question.labels?.map((label: string, index: number) => (
               <span key={index} className="text-center w-16">{label}</span>
             ))}
           </div>
@@ -358,7 +381,7 @@ export default function StudentSurveyPage() {
       return (
         <div className="space-y-6">
           <div className="flex justify-center space-x-2">
-            {Array.from({ length: question.max }, (_, index) => (
+            {Array.from({ length: question.max || 5 }, (_, index) => (
               <button
                 key={index}
                 onClick={() => handleAnswer(question.id, index + 1)}
@@ -372,10 +395,12 @@ export default function StudentSurveyPage() {
               </button>
             ))}
           </div>
-          <div className="flex justify-between text-xs text-gray-500 px-4">
-            <span>{question.labels[0]}</span>
-            <span>{question.labels[question.labels.length - 1]}</span>
-          </div>
+          {question.labels && (
+            <div className="flex justify-between text-xs text-gray-500 px-4">
+              <span>{question.labels[0]}</span>
+              <span>{question.labels[question.labels.length - 1]}</span>
+            </div>
+          )}
         </div>
       );
     }

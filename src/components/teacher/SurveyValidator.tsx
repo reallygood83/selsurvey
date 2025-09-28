@@ -49,6 +49,7 @@ interface ValidationResult {
 }
 
 interface SurveyValidatorProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   survey: any;
   apiKey: string;
   onValidationComplete?: (result: ValidationResult) => void;
@@ -151,9 +152,9 @@ export default function SurveyValidator({ survey, apiKey, onValidationComplete }
       setValidationResult(data.validation);
       onValidationComplete?.(data.validation);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('설문 검증 오류:', error);
-      setError(error.message || '설문 검증 중 오류가 발생했습니다.');
+      setError(error instanceof Error ? error.message : '설문 검증 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -221,7 +222,7 @@ export default function SurveyValidator({ survey, apiKey, onValidationComplete }
             <ShieldCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">설문 검증 준비</h3>
             <p className="text-muted-foreground mb-4">
-              '{survey?.title || '설문'}'의 품질을 검증하시겠습니까?
+              &lsquo;{survey?.title || '설문'}&rsquo;의 품질을 검증하시겠습니까?
             </p>
             <Button onClick={validateSurvey}>
               <ShieldCheck className="h-4 w-4 mr-2" />

@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const firebaseUser = result.user;
       
       // 기존 사용자 프로필 확인
-      let existingProfile = await userService.getUser(firebaseUser.uid);
+      const existingProfile = await userService.getUser(firebaseUser.uid);
       console.log('📋 기존 프로필:', existingProfile);
       
       if (!existingProfile) {

@@ -88,7 +88,7 @@ export default function EditSurveyPage() {
     setQuestions([...questions, newQuestion]);
   };
 
-  const updateQuestion = (index: number, field: keyof QuestionForm, value: any) => {
+  const updateQuestion = (index: number, field: keyof QuestionForm, value: string | boolean | string[]) => {
     const updatedQuestions = [...questions];
     updatedQuestions[index] = { ...updatedQuestions[index], [field]: value };
     setQuestions(updatedQuestions);

@@ -23,7 +23,14 @@ export default function StudentDashboardPage() {
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [recentResponses, setRecentResponses] = useState<SurveyResponse[]>([]);
   const [latestAnalysis, setLatestAnalysis] = useState<SELAnalysis | null>(null);
-  const [availableSurveys, setAvailableSurveys] = useState<any[]>([]);
+  const [availableSurveys, setAvailableSurveys] = useState<Array<{
+    id: string;
+    title: string;
+    description: string;
+    type: string;
+    estimatedTime: number;
+    icon: string;
+  }>>([]);
 
   useEffect(() => {
     if (!currentUser || userProfile?.role !== 'student') {
@@ -258,7 +265,7 @@ export default function StudentDashboardPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {Object.entries(latestAnalysis.selScores).map(([domain, score]) => {
+                    {Object.entries(latestAnalysis.scores).map(([domain, score]) => {
                       const domainNames = {
                         selfAwareness: '나 자신 알기',
                         selfManagement: '감정 다스리기',
@@ -429,7 +436,7 @@ export default function StudentDashboardPage() {
                     여러분의 솔직한 마음이 더 나은 내일을 만들어요!
                   </p>
                   <div className="mt-3 text-xs opacity-80">
-                    "작은 변화도 소중한 성장이에요" ✨
+                    &ldquo;작은 변화도 소중한 성장이에요&rdquo; ✨
                   </div>
                 </CardContent>
               </Card>

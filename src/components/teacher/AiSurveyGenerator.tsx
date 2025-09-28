@@ -32,6 +32,7 @@ import { SELDomain } from '@/types';
 import { selDomainDescriptions } from '@/data/selTemplates';
 
 interface AiSurveyGeneratorProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSurveyGenerated: (survey: any) => void;
   apiKey: string;
   onApiKeyChange: (key: string) => void;
@@ -49,6 +50,7 @@ export default function AiSurveyGenerator({
   const [step, setStep] = useState<'configure' | 'generating' | 'preview'>('configure');
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [generatedSurvey, setGeneratedSurvey] = useState<any>(null);
   
   // 설문 설정
@@ -145,9 +147,9 @@ export default function AiSurveyGenerator({
       setGeneratedSurvey(data.survey);
       setStep('preview');
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('AI 설문 생성 오류:', error);
-      alert(error.message || '설문 생성 중 오류가 발생했습니다.');
+      alert(error instanceof Error ? error.message : '설문 생성 중 오류가 발생했습니다.');
       setStep('configure');
     } finally {
       setLoading(false);
@@ -276,7 +278,7 @@ export default function AiSurveyGenerator({
           </CardHeader>
           <CardContent>
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              {generatedSurvey.questions?.map((question: any, index: number) => {
+              {generatedSurvey.questions?.map((question: Record<string, unknown>, index: number) => {
                 const domainInfo = selDomains[question.selDomain as keyof typeof selDomains];
                 const Icon = domainInfo?.icon;
                 

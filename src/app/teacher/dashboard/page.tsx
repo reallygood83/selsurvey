@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, UserCheck, Eye, MessageSquare, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity, Calendar, PieChart } from 'lucide-react';
+import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity } from 'lucide-react';
 import { StudentAnalysisCard } from '@/components/teacher/StudentAnalysisCard';
 import { ClassMoodOverview } from '@/components/teacher/ClassMoodOverview';
 import { StudentEmotionChart } from '@/components/teacher/StudentEmotionChart';
@@ -33,7 +33,7 @@ export default function TeacherDashboardPage() {
     if (currentUser && userProfile?.role === 'teacher' && userProfile.schoolInfo?.classCode) {
       loadDashboardData();
     }
-  }, [currentUser, userProfile]);
+  }, [currentUser, userProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadDashboardData = async () => {
     if (!currentUser || !userProfile?.schoolInfo?.classCode) return;

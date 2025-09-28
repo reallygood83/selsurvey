@@ -89,14 +89,14 @@ export function SurveyCreationGuide({ currentStep, onStepChange, surveyData }: S
   const handleNext = () => {
     if (canGoNext) {
       const nextStep = GUIDE_STEPS[currentStepIndex + 1];
-      onStepChange(nextStep.id as any);
+      onStepChange(nextStep.id as 'method' | 'template' | 'ai' | 'custom' | 'review');
     }
   };
 
   const handlePrev = () => {
     if (canGoPrev) {
       const prevStep = GUIDE_STEPS[currentStepIndex - 1];
-      onStepChange(prevStep.id as any);
+      onStepChange(prevStep.id as 'method' | 'template' | 'ai' | 'custom' | 'review');
     }
   };
 

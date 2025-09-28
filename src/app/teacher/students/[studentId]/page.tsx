@@ -321,7 +321,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
                 key={period.value}
                 variant={selectedPeriod === period.value ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedPeriod(period.value as any)}
+                onClick={() => setSelectedPeriod(period.value as string)}
               >
                 {period.label}
               </Button>

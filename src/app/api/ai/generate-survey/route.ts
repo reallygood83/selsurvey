@@ -1,7 +1,7 @@
 // GEMINI API를 활용한 SEL 설문 자동 생성 (고도화 버전)
 import { NextRequest, NextResponse } from 'next/server';
 import { createGeminiInstance } from '@/lib/gemini';
-import { selDomainDescriptions, reportAnalysisGuidelines } from '@/data/selTemplates';
+import { selDomainDescriptions } from '@/data/selTemplates';
 
 export async function POST(request: NextRequest) {
   try {
@@ -125,7 +125,7 @@ ${grade === '3-4' ?
 
     const result = await model.generateContent(fullPrompt);
     const response = await result.response;
-    let text = response.text();
+    const text = response.text();
 
     // JSON 부분만 추출 (더 정확한 파싱)
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -147,7 +147,7 @@ ${grade === '3-4' ?
     }
 
     // 질문 ID 자동 생성 및 검증
-    generatedSurvey.questions = generatedSurvey.questions.map((q: any, index: number) => ({
+    generatedSurvey.questions = generatedSurvey.questions.map((q: Record<string, unknown>, index: number) => ({
       ...q,
       id: q.id || `ai_q_${Date.now()}_${index + 1}`,
       required: q.required !== false, // 기본값 true
@@ -157,8 +157,9 @@ ${grade === '3-4' ?
     }));
 
     // SEL 영역 분포 검증
-    const domainCounts = generatedSurvey.questions.reduce((acc: any, q: any) => {
-      acc[q.selDomain] = (acc[q.selDomain] || 0) + 1;
+    const domainCounts = generatedSurvey.questions.reduce((acc: Record<string, number>, q: Record<string, unknown>) => {
+      const domain = q.selDomain as string;
+      acc[domain] = (acc[domain] || 0) + 1;
       return acc;
     }, {});
 
@@ -190,18 +191,19 @@ ${grade === '3-4' ?
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('설문 생성 오류:', error);
     
     // 상세한 오류 정보 제공
-    let errorDetails = error.message;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = errorMessage;
     let helpMessage = '';
 
-    if (error.message.includes('API key')) {
+    if (errorMessage.includes('API key')) {
       helpMessage = 'Google AI Studio에서 새로운 API 키를 발급받아 시도해주세요.';
-    } else if (error.message.includes('JSON')) {
+    } else if (errorMessage.includes('JSON')) {
       helpMessage = 'AI 응답 형식에 문제가 있습니다. 다시 시도해주세요.';
-    } else if (error.message.includes('quota')) {
+    } else if (errorMessage.includes('quota')) {
       helpMessage = 'API 사용량 한도에 도달했습니다. 잠시 후 다시 시도해주세요.';
     }
 

@@ -154,7 +154,7 @@ SEL 분석 결과: {selAnalysis}
 `;
 
 // Gemini AI 분석 함수 (사용자 API 키 지원)
-export async function analyzeSELData(studentInfo: any, responses: any, previousData: any = null, userApiKey?: string) {
+export async function analyzeSELData(studentInfo: Record<string, unknown>, responses: Record<string, unknown>, previousData: Record<string, unknown> | null = null, userApiKey?: string) {
   try {
     // 사용자 API 키가 있으면 사용, 없으면 기본 모델 사용
     const geminiModel = userApiKey ? createGeminiInstance(userApiKey) : model;
@@ -198,7 +198,7 @@ export async function analyzeSELData(studentInfo: any, responses: any, previousD
 }
 
 // 교사용 리포트 생성 함수 (사용자 API 키 지원)
-export async function generateTeacherReport(classInfo: any, studentData: any, period: string, userApiKey?: string) {
+export async function generateTeacherReport(classInfo: Record<string, unknown>, studentData: Record<string, unknown>, period: string, userApiKey?: string) {
   try {
     const geminiModel = userApiKey ? createGeminiInstance(userApiKey) : model;
     
@@ -219,7 +219,7 @@ export async function generateTeacherReport(classInfo: any, studentData: any, pe
 }
 
 // 학부모용 리포트 생성 함수 (사용자 API 키 지원)
-export async function generateParentReport(childInfo: any, selAnalysis: any, growthTrend: any, userApiKey?: string) {
+export async function generateParentReport(childInfo: Record<string, unknown>, selAnalysis: Record<string, unknown>, growthTrend: Record<string, unknown>, userApiKey?: string) {
   try {
     const geminiModel = userApiKey ? createGeminiInstance(userApiKey) : model;
     

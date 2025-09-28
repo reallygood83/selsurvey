@@ -38,7 +38,7 @@ export default function SharedSurveyPage() {
 
     // 설문 데이터는 로그인 여부와 관계없이 로드
     loadSurveyData();
-  }, [surveyId, currentUser, router]);
+  }, [surveyId, currentUser, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadSurveyData = async () => {
     if (!surveyId) return;

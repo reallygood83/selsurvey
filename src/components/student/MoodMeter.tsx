@@ -158,7 +158,7 @@ export default function MoodMeter() {
                 </p>
                 {todayMood.note && (
                   <p className="text-sm text-gray-600 mt-2 italic">
-                    "{todayMood.note}"
+                    &ldquo;{todayMood.note}&rdquo;
                   </p>
                 )}
               </div>

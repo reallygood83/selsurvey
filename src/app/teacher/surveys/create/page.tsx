@@ -394,11 +394,23 @@ export default function CreateSurveyPage() {
         {/* AI 생성 화면 */}
         {selectedTab === 'ai' && (
           <AiSurveyGenerator
-            onSurveyGenerated={(generatedSurvey: any) => {
-              const convertedQuestions: SurveyQuestion[] = generatedSurvey.questions.map((q: any, index: number) => ({
+            onSurveyGenerated={(generatedSurvey: { 
+              questions: Array<{ 
+                id: string; 
+                type: 'scale' | 'emotion' | 'multipleChoice' | 'text'; 
+                selDomain: string; 
+                question: string; 
+                options?: string[]; 
+                required: boolean; 
+              }>; 
+              title: string; 
+              description: string;
+              grade: string;
+            }) => {
+              const convertedQuestions: SurveyQuestion[] = generatedSurvey.questions.map((q, index: number) => ({
                 id: q.id,
-                type: q.type === 'multipleChoice' ? 'choice' : q.type,
-                domain: q.selDomain,
+                type: q.type === 'multipleChoice' ? 'choice' : q.type as 'emotion' | 'scale' | 'choice' | 'text',
+                domain: q.selDomain as SELDomain,
                 question: q.question,
                 grade: [1, 2, 3, 4, 5, 6],
                 options: q.options?.map((opt: string, optIndex: number) => ({ 

@@ -10,7 +10,6 @@ import {
   deleteDoc, 
   query, 
   where, 
-  orderBy, 
   limit, 
   Timestamp,
   writeBatch
@@ -296,10 +295,10 @@ export const studentService = {
     
     // Date 필드들을 Timestamp로 변환
     if (processedUpdates.joinedAt) {
-      processedUpdates.joinedAt = toTimestamp(processedUpdates.joinedAt) as any;
+      processedUpdates.joinedAt = toTimestamp(processedUpdates.joinedAt);
     }
     if (processedUpdates.lastResponseDate) {
-      processedUpdates.lastResponseDate = toTimestamp(processedUpdates.lastResponseDate) as any;
+      processedUpdates.lastResponseDate = toTimestamp(processedUpdates.lastResponseDate);
     }
     
     await updateDoc(studentRef, processedUpdates);
@@ -604,7 +603,7 @@ export const surveyService = {
   async debugSurveyResponses(surveyId: string): Promise<{
     totalResponses: number;
     responsesWithSurveyId: number;
-    sampleResponses: any[];
+    sampleResponses: SurveyResponse[];
   }> {
     try {
       console.log('🔍 설문 응답 데이터 검증 시작:', surveyId);
@@ -778,7 +777,7 @@ export const questionService = {
 // 배치 작업 유틸리티
 export const batchService = {
   // 여러 문서 일괄 업데이트
-  async batchUpdate(updates: { collection: string; id: string; data: any }[]): Promise<void> {
+  async batchUpdate(updates: { collection: string; id: string; data: Record<string, unknown> }[]): Promise<void> {
     const batch = writeBatch(db);
     
     updates.forEach(update => {
@@ -790,7 +789,7 @@ export const batchService = {
   },
 
   // 여러 문서 일괄 생성
-  async batchCreate(creates: { collection: string; data: any }[]): Promise<void> {
+  async batchCreate(creates: { collection: string; data: Record<string, unknown> }[]): Promise<void> {
     const batch = writeBatch(db);
     
     creates.forEach(create => {
@@ -923,7 +922,7 @@ export const moodService = {
       const processedUpdate = { ...moodUpdate };
       
       if (processedUpdate.submittedAt) {
-        processedUpdate.submittedAt = toTimestamp(processedUpdate.submittedAt) as any;
+        processedUpdate.submittedAt = toTimestamp(processedUpdate.submittedAt);
       }
       
       await updateDoc(moodRef, processedUpdate);

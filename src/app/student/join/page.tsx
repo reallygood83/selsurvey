@@ -5,13 +5,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { classService, studentService } from '@/lib/firestore';
-import { StudentProfile } from '@/types';
+import { StudentProfile, ClassInfo } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Users, CheckCircle, Info, UserPlus } from 'lucide-react';
+import { Loader2, CheckCircle, Info, UserPlus } from 'lucide-react';
 
 export default function StudentJoinPage() {
   const { currentUser, userProfile, updateUserProfile } = useAuth();
@@ -20,7 +20,7 @@ export default function StudentJoinPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [classCode, setClassCode] = useState('');
-  const [classInfo, setClassInfo] = useState<any>(null);
+  const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [studentName, setStudentName] = useState('');
 
   const handleClassCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -277,7 +277,7 @@ export function StudentEmotionChart({ classCode }: StudentEmotionChartProps) {
                           </div>
                           {mood.note && (
                             <div className="text-xs text-muted-foreground mt-1">
-                              "{mood.note}"
+                              &ldquo;{mood.note}&rdquo;
                             </div>
                           )}
                         </div>

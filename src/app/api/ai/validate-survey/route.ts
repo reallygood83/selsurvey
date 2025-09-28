@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       grade: survey.grade,
       estimatedTime: survey.estimatedTime,
       questionCount: survey.questions?.length || 0,
-      questions: survey.questions?.map((q: any, index: number) => ({
+      questions: survey.questions?.map((q: Record<string, unknown>, index: number) => ({
         id: q.id,
         order: index + 1,
         question: q.question,
@@ -48,14 +48,16 @@ export async function POST(request: NextRequest) {
     };
 
     // SEL 영역 분포 계산
-    const domainDistribution = surveyData.questions.reduce((acc: any, q: any) => {
-      acc[q.selDomain] = (acc[q.selDomain] || 0) + 1;
+    const domainDistribution = surveyData.questions.reduce((acc: Record<string, number>, q: Record<string, unknown>) => {
+      const domain = q.selDomain as string;
+      acc[domain] = (acc[domain] || 0) + 1;
       return acc;
     }, {});
 
     // 질문 유형 분포 계산
-    const typeDistribution = surveyData.questions.reduce((acc: any, q: any) => {
-      acc[q.type] = (acc[q.type] || 0) + 1;
+    const typeDistribution = surveyData.questions.reduce((acc: Record<string, number>, q: Record<string, unknown>) => {
+      const type = q.type as string;
+      acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {});
 
@@ -85,9 +87,10 @@ ${Object.entries(typeDistribution).map(([type, count]) => `${type}: ${count}개`
 ${selDomainsInfo}
 
 ## 설문 질문들:
-${surveyData.questions.map((q: any) => 
-  `Q${q.order}. [${q.selDomain}/${q.type}] ${q.question} ${q.options?.length ? `(선택지: ${q.options.length}개)` : ''}`
-).join('\n')}
+${surveyData.questions.map((q: Record<string, unknown>) => {
+  const options = q.options as string[] | undefined;
+  return `Q${q.order}. [${q.selDomain}/${q.type}] ${q.question} ${options?.length ? `(선택지: ${options.length}개)` : ''}`;
+}).join('\n')}
 
 ## 검증 항목:
 1. **SEL 영역 균형성**: 5개 영역이 적절히 분배되었는가?
@@ -179,7 +182,7 @@ ${surveyData.questions.map((q: any) =>
     // AI 검증 실행
     const result = await model.generateContent(validationPrompt);
     const response = await result.response;
-    let text = response.text();
+    const text = response.text();
 
     // JSON 부분 추출
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -214,17 +217,18 @@ ${surveyData.questions.map((q: any) =>
       validation: enhancedResult
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('설문 검증 오류:', error);
     
-    let errorDetails = error.message;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = errorMessage;
     let helpMessage = '';
 
-    if (error.message.includes('API key')) {
+    if (errorMessage.includes('API key')) {
       helpMessage = 'API 키를 확인하고 다시 시도해주세요.';
-    } else if (error.message.includes('JSON')) {
+    } else if (errorMessage.includes('JSON')) {
       helpMessage = 'AI 응답 형식에 문제가 있습니다. 다시 시도해주세요.';
-    } else if (error.message.includes('quota')) {
+    } else if (errorMessage.includes('quota')) {
       helpMessage = 'API 사용량 한도에 도달했습니다. 잠시 후 다시 시도해주세요.';
     }
 

@@ -184,8 +184,8 @@ export function GeminiApiKeySettings() {
               <ol className="list-decimal list-inside space-y-1 text-sm">
                 <li>Google AI Studio (aistudio.google.com)에 접속</li>
                 <li>Google 계정으로 로그인</li>
-                <li>좌측 메뉴에서 "API keys" 클릭</li>
-                <li>"Create API key" 버튼 클릭</li>
+                <li>좌측 메뉴에서 &ldquo;API keys&rdquo; 클릭</li>
+                <li>&ldquo;Create API key&rdquo; 버튼 클릭</li>
                 <li>생성된 API 키를 복사하여 입력</li>
               </ol>
               <p className="text-xs text-gray-600 mt-2">

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { surveyService, classService } from '@/lib/firestore';
-import { Survey, SurveyResponse, SurveyType, SurveyOption } from '@/types';
+import { Survey, SurveyResponse, SurveyType, SurveyOption, ClassInfo } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Users, Calendar, Clock, Eye, Edit, Trash2, AlertCircle } from 'lucide-react';
 
@@ -16,7 +16,7 @@ export default function SurveyViewPage() {
   const [loading, setLoading] = useState(true);
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
-  const [classInfo, setClassInfo] = useState<any>(null);
+  const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,8 +52,8 @@ export default function SurveyViewPage() {
 
       // 클래스 정보 로드
       const classes = await classService.getClassesByTeacher(currentUser!.uid);
-      const targetClass = classes.find((c: any) => c.code === surveyData.classCode);
-      setClassInfo(targetClass);
+      const targetClass = classes.find((c: ClassInfo) => c.classCode === surveyData.classCode);
+      setClassInfo(targetClass || null);
     } catch (error) {
       console.error('설문 데이터 로딩 오류:', error);
       setError('설문 데이터를 불러오는 중 오류가 발생했습니다.');
@@ -188,8 +188,8 @@ export default function SurveyViewPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">배포된 클래스</h2>
             <div className="flex items-center gap-4">
               <div>
-                <p className="font-medium text-gray-900">{classInfo.name}</p>
-                <p className="text-sm text-gray-600">클래스 코드: {classInfo.code}</p>
+                <p className="font-medium text-gray-900">{classInfo.className}</p>
+                <p className="text-sm text-gray-600">클래스 코드: {classInfo.classCode}</p>
               </div>
             </div>
           </div>

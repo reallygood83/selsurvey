@@ -191,7 +191,7 @@ export default function SurveyManagementPage() {
                         <h4 className="font-medium text-red-900">정말로 이 설문을 삭제하시겠습니까?</h4>
                       </div>
                       <p className="text-red-700 mb-4">
-                        설문 "{survey.title}"을(를) 삭제하면 관련된 모든 응답도 함께 삭제됩니다. 
+                        설문 &ldquo;{survey.title}&rdquo;을(를) 삭제하면 관련된 모든 응답도 함께 삭제됩니다. 
                         이 작업은 되돌릴 수 없습니다.
                       </p>
                       <div className="flex gap-3">
