@@ -1,0 +1,101 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 개발 단계: localhost에서 모든 읽기/쓰기 허용
+    // 프로덕션 배포 시 이 규칙을 수정해야 합니다!
+    
+    // 개발 환경용: localhost에서 모든 읽기/쓰기 허용
+    match /{document=**} {
+      allow read, write: if true;
+    }
+    
+    // 사용자 프로필 - 인증된 사용자만 자신의 데이터 접근
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 반 정보 - 교사는 자신의 반만, 학생은 읽기만
+    match /classes/{classId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.teacherId;
+      allow update: if request.auth != null && 
+        (resource == null || resource.data.teacherId == request.auth.uid);
+      allow delete: if request.auth != null && 
+        (resource == null || resource.data.teacherId == request.auth.uid);
+    }
+    
+    // 학생 프로필 - 교사는 자신의 반 학생만, 학생은 자신만
+    match /students/{studentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && (
+        // 학생이 자신의 프로필을 생성하는 경우
+        request.resource.data.userId == request.auth.uid ||
+        // 교사가 학생 프로필을 생성하는 경우  
+        request.resource.data.teacherId == request.auth.uid
+      );
+      allow update: if request.auth != null && (
+        resource == null ||
+        // 학생이 자신의 프로필을 수정하는 경우
+        resource.data.userId == request.auth.uid ||
+        // 교사가 자신의 반 학생 프로필을 수정하는 경우
+        resource.data.teacherId == request.auth.uid
+      );
+      allow delete: if request.auth != null && (
+        resource == null ||
+        resource.data.teacherId == request.auth.uid
+      );
+    }
+    
+    // 설문 응답 - 교사는 자신의 반 응답만, 학생은 자신의 응답만
+    match /surveyResponses/{responseId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+    
+    // SEL 분석 결과 - 교사와 해당 학생만
+    match /selAnalyses/{analysisId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+    
+    // 설문 - 교사는 자신의 설문만, 학생은 자신의 반 설문만
+    match /surveys/{surveyId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid != null;
+      allow update: if request.auth != null && (
+        resource.data.teacherId == request.auth.uid
+      );
+      allow delete: if request.auth != null && (
+        resource.data.teacherId == request.auth.uid
+      );
+    }
+    
+    // 설문 질문 - 교사는 자신의 설문 질문만
+    match /surveyQuestions/{questionId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.teacherId;
+      allow update: if request.auth != null && 
+        (resource == null || resource.data.teacherId == request.auth.uid);
+      allow delete: if request.auth != null && 
+        (resource == null || resource.data.teacherId == request.auth.uid);
+    }
+    
+    // 일일 기분 - 교사는 자신의 반 학생만, 학생은 자신만
+    match /dailyMoods/{moodId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+    
+    // 개발 단계에서만: 테스트 컬렉션에 대한 전체 접근
+    match /test/{document=**} {
+      allow read, write: if true; // 개발용 - 프로덕션에서 제거!
+    }
+  }
+}
