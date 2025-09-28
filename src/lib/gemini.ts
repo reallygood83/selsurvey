@@ -160,7 +160,7 @@ export async function analyzeSELData(studentInfo: Record<string, unknown>, respo
     const geminiModel = userApiKey ? createGeminiInstance(userApiKey) : model;
     
     const prompt = SEL_ANALYSIS_PROMPT
-      .replace('{grade}', studentInfo.grade)
+      .replace('{grade}', String(studentInfo.grade))
       .replace('{studentInfo}', JSON.stringify(studentInfo))
       .replace('{responses}', JSON.stringify(responses))
       .replace('{previousData}', JSON.stringify(previousData));

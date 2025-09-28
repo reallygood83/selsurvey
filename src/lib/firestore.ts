@@ -291,14 +291,14 @@ export const studentService = {
   // 학생 프로필 업데이트
   async updateStudentProfile(studentId: string, updates: Partial<StudentProfile>): Promise<void> {
     const studentRef = doc(db, COLLECTIONS.STUDENTS, studentId);
-    const processedUpdates = { ...updates };
+    const processedUpdates = { ...updates } as Record<string, unknown>;
     
     // Date 필드들을 Timestamp로 변환
     if (processedUpdates.joinedAt) {
-      processedUpdates.joinedAt = toTimestamp(processedUpdates.joinedAt);
+      processedUpdates.joinedAt = toTimestamp(processedUpdates.joinedAt as Date);
     }
     if (processedUpdates.lastResponseDate) {
-      processedUpdates.lastResponseDate = toTimestamp(processedUpdates.lastResponseDate);
+      processedUpdates.lastResponseDate = toTimestamp(processedUpdates.lastResponseDate as Date);
     }
     
     await updateDoc(studentRef, processedUpdates);
@@ -509,7 +509,7 @@ export const surveyService = {
     const responseRef = collection(db, COLLECTIONS.SURVEY_RESPONSES);
     const docRef = await addDoc(responseRef, {
       ...response,
-      submittedAt: toTimestamp(response.submittedAt)
+      submittedAt: toTimestamp(response.submittedAt as Date)
     });
     return docRef.id;
   },
@@ -620,12 +620,12 @@ export const surveyService = {
       const allResponses = allSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })) as SurveyResponse[];
       
       const surveyIdResponses = surveyIdSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })) as SurveyResponse[];
       
       console.log('📊 검증 결과:');
       console.log('- 전체 응답 수:', allResponses.length);
@@ -808,7 +808,7 @@ export const moodService = {
     const moodRef = collection(db, COLLECTIONS.DAILY_MOODS);
     const docRef = await addDoc(moodRef, {
       ...mood,
-      submittedAt: toTimestamp(mood.submittedAt)
+      submittedAt: toTimestamp(mood.submittedAt as Date)
     });
     return docRef.id;
   },
@@ -919,10 +919,10 @@ export const moodService = {
     
     if (existingMood) {
       const moodRef = doc(db, COLLECTIONS.DAILY_MOODS, existingMood.id);
-      const processedUpdate = { ...moodUpdate };
+      const processedUpdate = { ...moodUpdate } as Record<string, unknown>;
       
       if (processedUpdate.submittedAt) {
-        processedUpdate.submittedAt = toTimestamp(processedUpdate.submittedAt);
+        processedUpdate.submittedAt = toTimestamp(processedUpdate.submittedAt as Date);
       }
       
       await updateDoc(moodRef, processedUpdate);

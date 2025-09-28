@@ -293,31 +293,31 @@ export default function AiSurveyGenerator({
                     </div>
                     <p className="font-medium mb-2">{String(question.question || '')}</p>
                     
-                    {question.type === 'scale' && (
+                    {String(question.type) === 'scale' && (
                       <div className="text-sm text-muted-foreground">
                         📊 5점 척도 (1=전혀 그렇지 않다 ~ 5=매우 그렇다)
                       </div>
                     )}
                     
-                    {question.type === 'multipleChoice' && question.options && (
+                    {String(question.type) === 'multipleChoice' && Array.isArray(question.options) && (
                       <div className="text-sm text-muted-foreground">
-                        <div>📋 객관식 ({question.options.length}개 선택지)</div>
+                        <div>📋 객관식 ({(question.options as string[]).length}개 선택지)</div>
                         <ul className="list-disc list-inside mt-1">
-                          {question.options.slice(0, 3).map((option: string, i: number) => (
+                          {(question.options as string[]).slice(0, 3).map((option: string, i: number) => (
                             <li key={i}>{option}</li>
                           ))}
-                          {question.options.length > 3 && <li>...</li>}
+                          {(question.options as string[]).length > 3 && <li>...</li>}
                         </ul>
                       </div>
                     )}
                     
-                    {question.type === 'emotion' && (
+                    {String(question.type) === 'emotion' && (
                       <div className="text-sm text-muted-foreground">
                         😊 감정 선택 (이모지 기반)
                       </div>
                     )}
                     
-                    {question.type === 'text' && (
+                    {String(question.type) === 'text' && (
                       <div className="text-sm text-muted-foreground">
                         ✍️ 주관식 서술
                       </div>
@@ -525,7 +525,7 @@ export default function AiSurveyGenerator({
               <Checkbox 
                 id="open-questions"
                 checked={includeOpenQuestions}
-                onCheckedChange={setIncludeOpenQuestions}
+                onCheckedChange={(checked) => setIncludeOpenQuestions(checked === true)}
               />
               <Label htmlFor="open-questions" className="text-sm">
                 주관식 질문 포함 (깊이 있는 자기성찰용)
