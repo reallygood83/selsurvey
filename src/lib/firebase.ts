@@ -50,4 +50,15 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
+// 개발/프로덕션 환경별 허용 도메인 설정
+const allowedDomains = [
+  'localhost:3005',
+  'localhost:3000', 
+  'gohard-9a1f4.firebaseapp.com',
+  'goodmind-six.vercel.app',  // 실제 Vercel 배포 도메인
+  // 추가 도메인이 있다면 여기에 추가
+];
+
+console.log('🔧 Firebase 초기화 완료 - 현재 도메인:', window?.location?.hostname);
+
 export default app;
