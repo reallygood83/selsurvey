@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { classService, studentService, surveyService } from '@/lib/firestore';
-import { ClassInfo, StudentProfile, SurveyResponse } from '@/types';
+import { ClassInfo, StudentProfile, SurveyResponse, Grade } from '@/types';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,7 +79,7 @@ export default function StudentManagePage() {
             id: 'test1',
             userId: 'manual_test1',
             name: '테스트 학생1',
-            grade: 1,
+            grade: 1 as Grade,
             classCode: 'TEST001',
             teacherId: currentUser.uid,
             joinedAt: new Date(),
@@ -94,7 +94,7 @@ export default function StudentManagePage() {
             id: 'test2',
             userId: 'manual_test2',
             name: '테스트 학생2',
-            grade: 1,
+            grade: 1 as Grade,
             classCode: 'TEST001',
             teacherId: currentUser.uid,
             joinedAt: new Date(),
@@ -116,13 +116,14 @@ export default function StudentManagePage() {
           id: 'test-class',
           classCode: 'TEST001',
           schoolName: '테스트 학교',
-          grade: 1,
+          grade: 1 as Grade,
           className: '1반',
           teacherId: currentUser.uid,
+          teacherName: '테스트 교사',
           students: ['test1', 'test2'],
           studentCount: 2,
           createdAt: new Date(),
-          updatedAt: new Date()
+          isActive: true
         });
         
         setStudents([
@@ -130,7 +131,7 @@ export default function StudentManagePage() {
             id: 'test1',
             userId: 'manual_test1',
             name: '테스트 학생1',
-            grade: 1,
+            grade: 1 as Grade,
             classCode: 'TEST001',
             teacherId: currentUser.uid,
             joinedAt: new Date(),
@@ -145,7 +146,7 @@ export default function StudentManagePage() {
             id: 'test2',
             userId: 'manual_test2',
             name: '테스트 학생2',
-            grade: 1,
+            grade: 1 as Grade,
             classCode: 'TEST001',
             teacherId: currentUser.uid,
             joinedAt: new Date(),
@@ -168,13 +169,14 @@ export default function StudentManagePage() {
         id: 'test-class',
         classCode: 'TEST001',
         schoolName: '테스트 학교',
-        grade: 1,
+        grade: 1 as Grade,
         className: '1반',
         teacherId: currentUser.uid,
+        teacherName: '테스트 교사',
         students: ['test1', 'test2'],
         studentCount: 2,
         createdAt: new Date(),
-        updatedAt: new Date()
+        isActive: true
       });
       
       setStudents([

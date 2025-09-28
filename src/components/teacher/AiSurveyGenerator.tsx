@@ -283,7 +283,7 @@ export default function AiSurveyGenerator({
                 const Icon = domainInfo?.icon;
                 
                 return (
-                  <div key={question.id} className="border rounded-lg p-4">
+                  <div key={String(question.id) || index} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-muted-foreground">Q{index + 1}</span>
                       <Badge variant="outline" className="flex items-center space-x-1">
@@ -291,7 +291,7 @@ export default function AiSurveyGenerator({
                         <span>{domainInfo?.name}</span>
                       </Badge>
                     </div>
-                    <p className="font-medium mb-2">{question.question}</p>
+                    <p className="font-medium mb-2">{String(question.question || '')}</p>
                     
                     {question.type === 'scale' && (
                       <div className="text-sm text-muted-foreground">

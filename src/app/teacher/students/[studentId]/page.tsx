@@ -82,7 +82,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
     setLoading(true);
     try {
       // 학생 프로필 로드
-      const studentData = await studentService.getStudentById(params.studentId);
+      const studentData = await studentService.getStudentProfile(params.studentId);
       if (studentData) {
         setStudent(studentData);
         
@@ -321,7 +321,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
                 key={period.value}
                 variant={selectedPeriod === period.value ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedPeriod(period.value as string)}
+                onClick={() => setSelectedPeriod(period.value as '1month' | '3months' | '6months' | 'all')}
               >
                 {period.label}
               </Button>

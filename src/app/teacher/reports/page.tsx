@@ -95,6 +95,9 @@ export default function TeacherReportsPage() {
 
       // 최근 설문 응답 조회 - 모든 설문에서 해당 학생의 응답 조회
       try {
+        if (!currentUser) {
+          throw new Error('사용자 정보가 없습니다.');
+        }
         const allTeacherSurveys = await surveyService.getSurveysByTeacher(currentUser.uid);
         let studentResponses: SurveyResponse[] = [];
         
@@ -104,7 +107,7 @@ export default function TeacherReportsPage() {
             // 해당 학생의 응답만 필터링
             const studentSurveyResponses = surveyResponses.filter(response => 
               response.studentId === studentId || 
-              response.studentId === selectedStudent.userId
+              (selectedStudent && response.studentId === selectedStudent.userId)
             );
             studentResponses = [...studentResponses, ...studentSurveyResponses];
           } catch (error) {
@@ -131,14 +134,18 @@ export default function TeacherReportsPage() {
 
     try {
       // AI 리포트 생성
-      const reportData = {
+      const classInfo = {
+        name: selectedClass.className,
+        grade: selectedClass.grade
+      };
+      
+      const studentData = {
         student: selectedStudent,
-        class: selectedClass,
         analyses: studentAnalyses,
         responses: recentResponses
       };
 
-      const aiReport = await generateTeacherReport(reportData);
+      const aiReport = await generateTeacherReport(classInfo, studentData, '최근 3개월');
       setReportGenerated(aiReport);
     } catch (error) {
       console.error('리포트 생성 오류:', error);
@@ -159,12 +166,6 @@ export default function TeacherReportsPage() {
     return domainNames[domain as keyof typeof domainNames] || domain;
   };
 
-  const getSELScoreColor = (score: number) => {
-    if (score >= 4.0) return 'text-green-600 bg-green-50';
-    if (score >= 3.0) return 'text-blue-600 bg-blue-50';
-    if (score >= 2.0) return 'text-yellow-600 bg-yellow-50';
-    return 'text-red-600 bg-red-50';
-  };
 
   if (loading) {
     return (
@@ -353,21 +354,24 @@ export default function TeacherReportsPage() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4">
-                          {Object.entries(studentAnalyses[0].selScores).map(([domain, score]) => (
-                            <div key={domain} className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">
-                                  {getSELDomainName(domain)}
-                                </span>
-                                <Badge 
-                                  variant={score >= 4.0 ? 'default' : score >= 3.0 ? 'secondary' : score >= 2.0 ? 'outline' : 'destructive'}
-                                >
-                                  {score.toFixed(1)}
-                                </Badge>
+                          {Object.entries(studentAnalyses[0].scores).map(([domain, score]) => {
+                            const numScore = typeof score === 'number' ? score : 0;
+                            return (
+                              <div key={domain} className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium">
+                                    {getSELDomainName(domain)}
+                                  </span>
+                                  <Badge 
+                                    variant={numScore >= 4.0 ? 'default' : numScore >= 3.0 ? 'secondary' : numScore >= 2.0 ? 'outline' : 'destructive'}
+                                  >
+                                    {numScore.toFixed(1)}
+                                  </Badge>
+                                </div>
+                                <Progress value={(numScore / 5) * 100} className="h-2" />
                               </div>
-                              <Progress value={(score / 5) * 100} className="h-2" />
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         
                         {studentAnalyses[0].recommendations && (
