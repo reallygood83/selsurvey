@@ -53,6 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('🚀 로그인 시도 - 선택된 역할:', role);
     try {
       setLoading(true);
+      
+      // Content Blocker 감지 및 사용자 안내
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
       
@@ -93,7 +95,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Google 로그인 오류:', error);
-      throw new Error('로그인에 실패했습니다.');
+      
+      // Content Blocker로 인한 오류 감지
+      if (error instanceof Error) {
+        if (error.message.includes('popup') || error.message.includes('blocked')) {
+          throw new Error('팝업이 차단되었습니다. 브라우저의 팝업 차단 설정을 확인해주세요.');
+        }
+        if (error.message.includes('network')) {
+          throw new Error('네트워크 오류가 발생했습니다. 광고 차단기를 비활성화하고 다시 시도해주세요.');
+        }
+      }
+      
+      throw new Error('로그인에 실패했습니다. 광고 차단기나 팝업 차단 설정을 확인해주세요.');
     } finally {
       setLoading(false);
     }

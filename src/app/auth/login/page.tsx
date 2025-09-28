@@ -174,8 +174,15 @@ function LoginContent() {
             </Button>
 
             {/* 추가 정보 */}
-            <div className="text-center text-sm text-muted-foreground">
+            <div className="text-center text-sm text-muted-foreground space-y-2">
               <p>계정이 없으신가요? Google 로그인 시 자동으로 계정이 생성됩니다.</p>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-left">
+                <p className="text-amber-800 font-medium text-xs">로그인이 안 되나요?</p>
+                <p className="text-amber-700 text-xs mt-1">
+                  광고 차단기(AdBlock, uBlock 등)를 일시적으로 비활성화하거나 
+                  다른 브라우저에서 시도해보세요.
+                </p>
+              </div>
             </div>
 
             {/* 홈으로 돌아가기 */}
