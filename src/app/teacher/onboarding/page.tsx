@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { classService } from '@/lib/firestore';
 import { ClassInfo, Grade } from '@/types';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, BookOpen, Info, CheckCircle } from 'lucide-react';
 
 export default function TeacherOnboardingPage() {
-  const { user, userProfile, updateUserProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const router = useRouter();
   
   const [loading, setLoading] = useState(false);
@@ -79,14 +81,13 @@ export default function TeacherOnboardingPage() {
       const classId = await classService.createClass(classInfo);
 
       // 사용자 프로필에 학교 정보 업데이트
-      await updateUserProfile({
-        schoolInfo: {
-          schoolName: formData.schoolName.trim(),
-          grade: formData.grade,
-          className: formData.className.trim(),
-          classCode,
-          teacherId: user.uid
-        }
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        'schoolInfo.schoolName': formData.schoolName.trim(),
+        'schoolInfo.grade': formData.grade,
+        'schoolInfo.className': formData.className.trim(),
+        'schoolInfo.classCode': classCode,
+        'schoolInfo.teacherId': user.uid
       });
 
       // 교사 대시보드로 리다이렉트

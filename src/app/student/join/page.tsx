@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { classService, studentService } from '@/lib/firestore';
 import { StudentProfile, ClassInfo } from '@/types';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +16,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle, Info, UserPlus } from 'lucide-react';
 
 export default function StudentJoinPage() {
-  const { user, userProfile, updateUserProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const router = useRouter();
   
   const [loading, setLoading] = useState(false);
@@ -96,14 +98,13 @@ export default function StudentJoinPage() {
       await classService.addStudentToClass(classInfo.id, studentId);
 
       // 사용자 프로필에 학교 정보 업데이트
-      await updateUserProfile({
-        schoolInfo: {
-          schoolName: classInfo.schoolName,
-          grade: classInfo.grade,
-          className: classInfo.className,
-          classCode: classInfo.classCode,
-          teacherId: classInfo.teacherId
-        }
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        'schoolInfo.schoolName': classInfo.schoolName,
+        'schoolInfo.grade': classInfo.grade,
+        'schoolInfo.className': classInfo.className,
+        'schoolInfo.classCode': classInfo.classCode,
+        'schoolInfo.teacherId': classInfo.teacherId
       });
 
       // 학생 대시보드로 리다이렉트

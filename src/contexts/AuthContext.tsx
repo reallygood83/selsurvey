@@ -14,6 +14,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
+import { SchoolInfo } from '@/types';
 
 // 사용자 프로필 타입
 interface UserProfile {
@@ -22,6 +23,7 @@ interface UserProfile {
   displayName: string | null;
   photoURL: string | null;
   role: 'teacher' | 'student';
+  schoolInfo?: SchoolInfo;
   createdAt: Date;
   lastLoginAt: Date;
 }
@@ -109,18 +111,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // 역할을 로컬 스토리지에 저장
         localStorage.setItem('userRole', role);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Google 로그인 오류:', error);
       
       // 간단한 오류 메시지
       let errorMessage = '로그인 중 오류가 발생했습니다.';
       
-      if (error.code === 'auth/popup-blocked') {
-        errorMessage = '팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.';
-      } else if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = '로그인 창이 닫혔습니다. 다시 시도해주세요.';
-      } else if (error.code === 'auth/network-request-failed') {
-        errorMessage = '네트워크 연결을 확인해주세요.';
+      if (error && typeof error === 'object' && 'code' in error) {
+        const authError = error as { code: string };
+        
+        if (authError.code === 'auth/popup-blocked') {
+          errorMessage = '팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.';
+        } else if (authError.code === 'auth/popup-closed-by-user') {
+          errorMessage = '로그인 창이 닫혔습니다. 다시 시도해주세요.';
+        } else if (authError.code === 'auth/network-request-failed') {
+          errorMessage = '네트워크 연결을 확인해주세요.';
+        }
       }
       
       setError(errorMessage);
