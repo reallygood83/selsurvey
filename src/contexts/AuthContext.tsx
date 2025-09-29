@@ -151,6 +151,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signOut(auth);
       setUser(null);
       setUserProfile(null);
+      
+      // 로그아웃 후 메인페이지로 리다이렉션
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
     } catch (error) {
       console.error('로그아웃 오류:', error);
       setError('로그아웃 중 오류가 발생했습니다.');

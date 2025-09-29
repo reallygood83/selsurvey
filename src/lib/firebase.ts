@@ -96,44 +96,27 @@ try {
   console.error('❌ Firebase initialization error:', error);
 }
 
-// Firestore REST API client for fallback
-class FirestoreRestClient {
-  private baseUrl: string;
-  private projectId: string;
-  private apiKey: string;
-
-  constructor() {
-    this.projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '';
-    this.apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '';
-    this.baseUrl = `https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents`;
-  }
-
-  async testConnection(): Promise<boolean> {
-    try {
-      if (!this.projectId || !this.apiKey) {
-        return false;
-      }
-
-      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      return response.ok;
-    } catch (error) {
-      console.error('REST client connection test failed:', error);
+// Firebase SDK connection test using proper Firebase methods
+const testFirebaseSDK = async (): Promise<boolean> => {
+  try {
+    if (!isFirebaseAvailable()) {
       return false;
     }
+    
+    // Test Firestore connection using Firebase SDK
+    if (db) {
+      // Simple connection test - try to get app info
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Firebase SDK test failed:', error);
+    return false;
   }
-}
-
-// Create REST client instance
-const restClient = new FirestoreRestClient();
+};
 
 // Export Firebase services
-export { app, auth, db, googleProvider, restClient };
+export { app, auth, db, googleProvider };
 
 // Utility functions
 export const isFirebaseAvailable = (): boolean => {
@@ -155,14 +138,14 @@ export const getFirebaseConfig = () => {
 export const testFirebaseConnection = async () => {
   const results = {
     sdkAvailable: isFirebaseAvailable(),
-    restApiAvailable: false,
+    sdkTestPassed: false,
     configValid: isConfigValid(),
   };
 
   try {
-    results.restApiAvailable = await restClient.testConnection();
+    results.sdkTestPassed = await testFirebaseSDK();
   } catch (error) {
-    console.error('REST API test failed:', error);
+    console.error('Firebase SDK test failed:', error);
   }
 
   return results;

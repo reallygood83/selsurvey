@@ -13,7 +13,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com https://*.google.com wss://*.firebaseapp.com",
+              "connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com https://*.google.com wss://*.firebaseapp.com https://firestore.googleapis.com",
               "frame-src 'self' https://accounts.google.com https://*.google.com https://gohard-9a1f4.firebaseapp.com https://selsurvey.vercel.app",
               "object-src 'none'",
               "base-uri 'self'"
