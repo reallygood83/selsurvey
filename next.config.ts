@@ -41,15 +41,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXTAUTH_URL: 'https://goodmind-six.vercel.app',
   },
-  // 외부 도메인 허용
-  async rewrites() {
-    return [
-      {
-        source: '/api/auth/:path*',
-        destination: 'https://goodmind-six.vercel.app/api/auth/:path*',
-      },
-    ];
-  },
+  // 배포를 위한 간소화된 설정
 };
 
 export default nextConfig;

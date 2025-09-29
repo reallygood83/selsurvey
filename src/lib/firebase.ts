@@ -22,22 +22,22 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// 개발 환경에서 에뮬레이터 사용 (클라이언트 사이드에서만)
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  // Auth 에뮬레이터 연결
-  try {
-    connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-  } catch (error) {
-    // 이미 연결되어 있거나 연결할 수 없는 경우 무시
-  }
+// 개발 환경에서 에뮬레이터 사용 (클라이언트 사이드에서만) - 임시 비활성화
+// if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+//   // Auth 에뮬레이터 연결
+//   try {
+//     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+//   } catch (error) {
+//     // 이미 연결되어 있거나 연결할 수 없는 경우 무시
+//   }
 
-  // Firestore 에뮬레이터 연결
-  try {
-    connectFirestoreEmulator(db, 'localhost', 8080);
-  } catch (error) {
-    // 이미 연결되어 있거나 연결할 수 없는 경우 무시
-  }
-}
+//   // Firestore 에뮬레이터 연결
+//   try {
+//     connectFirestoreEmulator(db, 'localhost', 8080);
+//   } catch (error) {
+//     // 이미 연결되어 있거나 연결할 수 없는 경우 무시
+//   }
+// }
 
 // Google OAuth Provider 설정 - 향상된 보안
 export const googleProvider = new GoogleAuthProvider();
