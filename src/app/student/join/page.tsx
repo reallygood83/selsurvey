@@ -1,8 +1,8 @@
 // 학생 반 참여 페이지 - 반 코드로 반 참여
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { classService, studentService } from '@/lib/firestore';
 import { StudentProfile, ClassInfo } from '@/types';
@@ -18,6 +18,7 @@ import { Loader2, CheckCircle, Info, UserPlus } from 'lucide-react';
 export default function StudentJoinPage() {
   const { user, userProfile } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,13 +26,25 @@ export default function StudentJoinPage() {
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [studentName, setStudentName] = useState('');
 
+  // URL에서 class 파라미터 가져오기 (직접 참여 링크)
+  useEffect(() => {
+    const classFromUrl = searchParams?.get('class');
+    if (classFromUrl) {
+      setClassCode(classFromUrl);
+      // 자동으로 반 정보 확인
+      handleVerifyClassCode(classFromUrl);
+    }
+  }, [searchParams]);
+
   const handleClassCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
     setClassCode(value);
   };
 
-  const handleVerifyClassCode = async () => {
-    if (classCode.length !== 6) {
+  const handleVerifyClassCode = async (codeToVerify?: string) => {
+    const codeToCheck = codeToVerify || classCode;
+    
+    if (codeToCheck.length !== 6) {
       setError('반 코드는 6자리여야 합니다.');
       return;
     }
@@ -40,7 +53,7 @@ export default function StudentJoinPage() {
     setError(null);
 
     try {
-      const foundClass = await classService.getClassByCode(classCode);
+      const foundClass = await classService.getClassByCode(codeToCheck);
       
       if (!foundClass) {
         setError('존재하지 않는 반 코드입니다. 다시 확인해주세요.');
@@ -98,6 +111,9 @@ export default function StudentJoinPage() {
       await classService.addStudentToClass(classInfo.id, studentId);
 
       // 사용자 프로필에 학교 정보 업데이트
+      if (!db) {
+        throw new Error('데이터베이스 연결이 없습니다.');
+      }
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
         'schoolInfo.schoolName': classInfo.schoolName,
@@ -190,7 +206,7 @@ export default function StudentJoinPage() {
                 />
                 <Button
                   type="button"
-                  onClick={handleVerifyClassCode}
+                  onClick={() => handleVerifyClassCode()}
                   disabled={classCode.length !== 6 || loading}
                   variant={classCode.length !== 6 || loading ? "secondary" : "default"}
                 >

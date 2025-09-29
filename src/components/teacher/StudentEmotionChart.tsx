@@ -54,10 +54,25 @@ export function StudentEmotionChart({ classCode }: StudentEmotionChartProps) {
   const loadStudentMoods = async (studentId: string) => {
     setMoodLoading(true);
     try {
-      const moods = await moodService.getStudentMoods(studentId, dateRange);
+      // 학생 프로필에서 userId를 찾아서 무드 조회
+      const student = students.find(s => s.id === studentId);
+      if (!student) {
+        console.error('학생을 찾을 수 없습니다:', studentId);
+        setStudentMoods([]);
+        return;
+      }
+      
+      console.log('📊 [StudentEmotionChart] 학생 감정 데이터 로드:', {
+        studentId: student.id,
+        userId: student.userId,
+        studentName: student.name
+      });
+      
+      const moods = await moodService.getStudentMoods(student.userId, dateRange);
       setStudentMoods(moods);
     } catch (error) {
       console.error('학생 감정 데이터 로드 오류:', error);
+      setStudentMoods([]);
     } finally {
       setMoodLoading(false);
     }

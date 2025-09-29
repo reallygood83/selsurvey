@@ -49,6 +49,13 @@ export default function MoodMeter() {
   const handleSaveMood = async () => {
     if (!selectedMood || !user) return;
 
+    console.log('🎭 [MoodMeter] 기분 저장 시작:', {
+      userId: user.uid,
+      userEmail: user.email,
+      selectedMoodId: selectedMood.id,
+      selectedEmotion: selectedMood.emotion
+    });
+
     setIsLoading(true);
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -64,8 +71,11 @@ export default function MoodMeter() {
         submittedAt: new Date()
       };
 
+      console.log('🎭 [MoodMeter] 저장할 기분 데이터:', moodData);
+
       if (todayMood) {
         // 기존 기분 업데이트
+        console.log('🔄 [MoodMeter] 기존 기분 업데이트 중...');
         await moodService.updateTodayMood(user.uid, {
           moodId: selectedMood.id,
           emotion: selectedMood.emotion,
@@ -74,21 +84,31 @@ export default function MoodMeter() {
           pleasantness: selectedMood.pleasantness,
           note: note.trim() || ''
         });
+        console.log('✅ [MoodMeter] 기분 업데이트 완료');
         toast({
           title: "기분이 업데이트되었습니다! 😊",
           description: `오늘의 기분: ${selectedMood.emoji} ${selectedMood.emotion}`,
         });
       } else {
         // 새로운 기분 저장
+        console.log('💾 [MoodMeter] 새 기분 저장 중...');
         const moodId = await moodService.saveDailyMood(moodData);
+        console.log('✅ [MoodMeter] 새 기분 저장 완료, ID:', moodId);
+        
         setTodayMood({ ...moodData, id: moodId });
         toast({
           title: "오늘의 기분이 저장되었습니다! 🎉",
           description: `${selectedMood.emoji} ${selectedMood.emotion} - ${selectedMood.description}`,
         });
       }
+
+      // 저장 후 즉시 확인
+      console.log('🔍 [MoodMeter] 저장 후 확인 중...');
+      const savedMood = await moodService.getTodayMood(user.uid);
+      console.log('🔍 [MoodMeter] 저장 후 확인 결과:', savedMood);
+      
     } catch (error) {
-      console.error('기분 저장 실패:', error);
+      console.error('❌ [MoodMeter] 기분 저장 실패:', error);
       toast({
         title: "저장에 실패했습니다",
         description: "다시 시도해주세요.",

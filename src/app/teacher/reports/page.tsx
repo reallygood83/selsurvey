@@ -93,33 +93,32 @@ export default function TeacherReportsPage() {
       const analyses = await analysisService.getAnalysesByStudent(studentId, 10);
       setStudentAnalyses(analyses);
 
-      // 최근 설문 응답 조회 - 모든 설문에서 해당 학생의 응답 조회
+      // 최근 설문 응답 조회 - studentId로 직접 조회 (훨씬 효율적)
+      console.log('📊 [Reports] 학생 설문 응답 조회 시작:', {
+        studentId: studentId,
+        studentName: selectedStudent?.name
+      });
+      
       try {
-        if (!user) {
-          throw new Error('사용자 정보가 없습니다.');
-        }
-        const allTeacherSurveys = await surveyService.getSurveysByTeacher(user.uid);
-        let studentResponses: SurveyResponse[] = [];
+        const studentResponses = await surveyService.getResponsesByStudent(studentId, 10);
+        console.log(`✅ [Reports] 학생 응답 조회 완료: ${studentResponses.length}개`);
         
-        for (const survey of allTeacherSurveys) {
-          try {
-            const surveyResponses = await surveyService.getResponsesBySurvey(survey.id);
-            // 해당 학생의 응답만 필터링
-            const studentSurveyResponses = surveyResponses.filter(response => 
-              response.studentId === studentId || 
-              (selectedStudent && response.studentId === selectedStudent.userId)
-            );
-            studentResponses = [...studentResponses, ...studentSurveyResponses];
-          } catch (error) {
-            console.error(`설문 ${survey.id}에서 학생 응답 조회 오류:`, error);
-          }
-        }
+        setRecentResponses(studentResponses);
         
-        // 시간순으로 정렬하고 최근 10개만 선택
-        studentResponses.sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
-        setRecentResponses(studentResponses.slice(0, 10));
+        // 디버깅용 로그: 응답 데이터 구조 확인
+        if (studentResponses.length > 0) {
+          console.log('📋 [Reports] 학생 응답 샘플:', {
+            firstResponse: {
+              id: studentResponses[0].id,
+              surveyType: studentResponses[0].surveyType,
+              studentId: studentResponses[0].studentId,
+              classCode: studentResponses[0].classCode,
+              submittedAt: studentResponses[0].submittedAt
+            }
+          });
+        }
       } catch (error) {
-        console.error('학생 응답 조회 오류:', error);
+        console.error('❌ [Reports] 학생 응답 조회 오류:', error);
         setRecentResponses([]);
       }
     } catch (error) {

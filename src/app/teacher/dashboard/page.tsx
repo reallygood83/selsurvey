@@ -14,6 +14,7 @@ import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarCh
 import { StudentAnalysisCard } from '@/components/teacher/StudentAnalysisCard';
 import { ClassMoodOverview } from '@/components/teacher/ClassMoodOverview';
 import { StudentEmotionChart } from '@/components/teacher/StudentEmotionChart';
+import { StudentInviteLink } from '@/components/teacher/StudentInviteLink';
 
 export default function TeacherDashboardPage() {
   const { user, userProfile, logout } = useAuth();
@@ -52,34 +53,41 @@ export default function TeacherDashboardPage() {
         const studentsData = await studentService.getStudentsByClass(classData.classCode);
         setStudents(studentsData);
 
-        // 최근 설문 응답 로드 - 설문별로 응답 조회하여 통합
+        // 최근 설문 응답 로드 - classCode 기반으로 직접 조회
+        console.log('📊 [Dashboard] 설문 응답 로드 시작:', {
+          classCode: classData.classCode
+        });
+        
         let allResponses: SurveyResponse[] = [];
         
-        // 각 설문에 대한 응답들을 수집
-        const surveysData = await surveyService.getSurveysByTeacher(user.uid);
-        console.log('🔍 교사 설문 목록:', surveysData.length, '개');
-        
-        for (const survey of surveysData) {
-          try {
-            console.log(`📋 설문 "${survey.title}" (${survey.id}) 응답 조회 중...`);
-            const surveyResponses = await surveyService.getResponsesBySurvey(survey.id);
-            console.log(`✅ 설문 "${survey.title}" 응답 ${surveyResponses.length}개 발견`);
-            allResponses = [...allResponses, ...surveyResponses];
-            
-            // 디버깅용 데이터 검증
-            if (surveyResponses.length > 0) {
-              await surveyService.debugSurveyResponses(survey.id);
-            }
-          } catch (error) {
-            console.error(`❌ 설문 ${survey.id} 응답 로드 오류:`, error);
+        try {
+          // classCode 기반으로 모든 설문 응답 조회
+          allResponses = await surveyService.getResponsesByClass(classData.classCode);
+          console.log(`✅ [Dashboard] 반별 설문 응답 조회 완료: ${allResponses.length}개`);
+          
+          // 추가 로그: 응답 데이터 구조 확인
+          if (allResponses.length > 0) {
+            console.log('📋 [Dashboard] 설문 응답 샘플:', {
+              firstResponse: {
+                id: allResponses[0].id,
+                surveyType: allResponses[0].surveyType,
+                studentId: allResponses[0].studentId,
+                classCode: allResponses[0].classCode,
+                submittedAt: allResponses[0].submittedAt
+              }
+            });
           }
+          
+          // 최근 10개만 선택
+          setRecentResponses(allResponses.slice(0, 10));
+        } catch (error) {
+          console.error('❌ [Dashboard] 설문 응답 로드 오류:', error);
+          setRecentResponses([]);
         }
         
-        console.log(`📊 총 수집된 응답 수: ${allResponses.length}개`);
-        
-        // 시간순으로 정렬하고 최근 10개만 선택
-        allResponses.sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
-        setRecentResponses(allResponses.slice(0, 10));
+        // 설문 목록도 로드 (기존 설문 관리를 위해)
+        const surveysData = await surveyService.getSurveysByTeacher(user.uid);
+        console.log('🔍 [Dashboard] 교사 설문 목록:', surveysData.length, '개');
 
         // 설문 목록을 상태에 저장 (이미 위에서 로드함)
         setExistingSurveys(surveysData);
@@ -527,6 +535,18 @@ export default function TeacherDashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* 학생 초대 링크 */}
+          {classInfo && userProfile && (
+            <div className="mb-8">
+              <StudentInviteLink
+                classCode={classInfo.classCode}
+                schoolName={classInfo.schoolName}
+                className={classInfo.className}
+                grade={classInfo.grade}
+              />
+            </div>
+          )}
 
           {/* 학생 SEL 분석 결과 */}
           <div id="student-analysis" className="mb-8">

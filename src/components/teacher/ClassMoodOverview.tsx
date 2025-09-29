@@ -23,18 +23,50 @@ export function ClassMoodOverview({ classCode }: ClassMoodOverviewProps) {
   }, [classCode]);
 
   const loadTodayMoods = async () => {
-    if (!classCode) return;
+    if (!classCode) {
+      console.log('🏫 [ClassMoodOverview] classCode가 없음');
+      return;
+    }
 
+    console.log('🏫 [ClassMoodOverview] 학급 감정 데이터 로드 시작, classCode:', classCode);
     setLoading(true);
+    
     try {
+      console.log('🏫 [ClassMoodOverview] moodService.getClassTodayMoods 호출 중...');
+      console.log('🏫 [ClassMoodOverview] studentService.getStudentsByClass 호출 중...');
+      
       const [moods, studentsData] = await Promise.all([
         moodService.getClassTodayMoods(classCode),
         studentService.getStudentsByClass(classCode)
       ]);
+      
+      console.log('🏫 [ClassMoodOverview] 받은 무드 데이터:', moods.length, '개');
+      console.log('🏫 [ClassMoodOverview] 받은 학생 데이터:', studentsData.length, '개');
+      
+      if (moods.length > 0) {
+        console.log('🏫 [ClassMoodOverview] 무드 데이터 상세:');
+        moods.forEach((mood, index) => {
+          console.log(`  무드 ${index + 1}:`, mood);
+        });
+      }
+      
+      if (studentsData.length > 0) {
+        console.log('🏫 [ClassMoodOverview] 학생 데이터 상세:');
+        studentsData.forEach((student, index) => {
+          console.log(`  학생 ${index + 1}:`, { 
+            id: student.id, 
+            name: student.name,
+            classCode: student.classCode 
+          });
+        });
+      }
+      
       setTodayMoods(moods);
       setStudents(studentsData);
+      
+      console.log('✅ [ClassMoodOverview] 데이터 로드 완료');
     } catch (error) {
-      console.error('오늘의 학급 감정 데이터 로드 오류:', error);
+      console.error('❌ [ClassMoodOverview] 오늘의 학급 감정 데이터 로드 오류:', error);
     } finally {
       setLoading(false);
     }
