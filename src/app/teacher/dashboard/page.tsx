@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity, MessageSquare } from 'lucide-react';
+import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity, MessageSquare, Download, Calendar, User } from 'lucide-react';
 import { StudentAnalysisCard } from '@/components/teacher/StudentAnalysisCard';
 import { ClassMoodOverview } from '@/components/teacher/ClassMoodOverview';
 import { StudentEmotionChart } from '@/components/teacher/StudentEmotionChart';
@@ -27,6 +27,15 @@ export default function TeacherDashboardPage() {
   const [existingSurveys, setExistingSurveys] = useState<Survey[]>([]);
   const [selectedResponse, setSelectedResponse] = useState<SurveyResponse | null>(null);
   const [responseModalOpen, setResponseModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportType, setReportType] = useState<'student' | 'class'>('class');
+  const [selectedStudentForReport, setSelectedStudentForReport] = useState<string>('');
+  const [reportDateRange, setReportDateRange] = useState({
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30일 전
+    endDate: new Date().toISOString().split('T')[0] // 오늘
+  });
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [generatedReport, setGeneratedReport] = useState<any>(null);
   const [stats, setStats] = useState({
     totalStudents: 0,
     activeStudents: 0,
@@ -71,6 +80,74 @@ export default function TeacherDashboardPage() {
     const result = student?.name || '알 수 없음';
     console.log('✅ [getStudentName] 최종 결과:', result, student ? `(${student.id})` : '(매칭 실패)');
     return result;
+  };
+
+  // AI 리포트 생성 함수
+  const generateReport = async () => {
+    if (!classInfo || !user) {
+      alert('학급 정보가 없습니다.');
+      return;
+    }
+
+    if (reportType === 'student' && !selectedStudentForReport) {
+      alert('분석할 학생을 선택해주세요.');
+      return;
+    }
+
+    setGeneratingReport(true);
+    setGeneratedReport(null);
+
+    try {
+      const endpoint = reportType === 'student' ? '/api/reports/student' : '/api/reports/class';
+      const requestBody = reportType === 'student' 
+        ? {
+            studentId: selectedStudentForReport,
+            classCode: classInfo.classCode,
+            startDate: reportDateRange.startDate,
+            endDate: reportDateRange.endDate,
+            reportType: 'individual'
+          }
+        : {
+            classCode: classInfo.classCode,
+            startDate: reportDateRange.startDate,
+            endDate: reportDateRange.endDate,
+            includeIndividualInsights: true
+          };
+
+      console.log('🤖 [AI Report] 리포트 생성 요청:', {
+        type: reportType,
+        endpoint,
+        requestBody
+      });
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '리포트 생성 중 오류가 발생했습니다.');
+      }
+
+      if (data.error && data.responseCount === 0) {
+        alert(`${reportType === 'student' ? '해당 학생의' : '학급 전체'} 설문 응답이 없습니다.\n기간: ${reportDateRange.startDate} ~ ${reportDateRange.endDate}`);
+        return;
+      }
+
+      setGeneratedReport(data);
+      console.log('✅ [AI Report] 리포트 생성 완료:', data);
+
+    } catch (error) {
+      console.error('❌ [AI Report] 리포트 생성 오류:', error);
+      alert(`리포트 생성 중 오류가 발생했습니다: ${error}`);
+    } finally {
+      setGeneratingReport(false);
+    }
   };
 
   const loadDashboardData = async () => {
@@ -872,11 +949,22 @@ export default function TeacherDashboardPage() {
                   <Activity className="w-5 h-5 mr-2" />
                   최근 설문 응답
                 </CardTitle>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/teacher/surveys/manage">
-                    전체 보기
-                  </Link>
-                </Button>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setReportModalOpen(true)}
+                    className="flex items-center"
+                  >
+                    <Download className="w-4 h-4 mr-1" />
+                    AI 리포트
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/teacher/surveys/manage">
+                      전체 보기
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-6">
@@ -1002,6 +1090,343 @@ export default function TeacherDashboardPage() {
                   닫기
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI 리포트 생성 모달 */}
+      {reportModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  AI SEL 분석 리포트 생성
+                </h2>
+                <button
+                  onClick={() => {
+                    setReportModalOpen(false);
+                    setGeneratedReport(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {!generatedReport ? (
+                <div className="space-y-6">
+                  {/* 리포트 유형 선택 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">리포트 유형</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div 
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                          reportType === 'class' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-200'
+                        }`}
+                        onClick={() => setReportType('class')}
+                      >
+                        <div className="flex items-center mb-2">
+                          <Users className="w-5 h-5 mr-2 text-purple-600" />
+                          <span className="font-medium">학급 전체 분석</span>
+                        </div>
+                        <p className="text-sm text-gray-600">학급 전체의 SEL 발달 현황과 경향을 분석합니다</p>
+                      </div>
+                      <div 
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                          reportType === 'student' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-200'
+                        }`}
+                        onClick={() => setReportType('student')}
+                      >
+                        <div className="flex items-center mb-2">
+                          <User className="w-5 h-5 mr-2 text-blue-600" />
+                          <span className="font-medium">개별 학생 분석</span>
+                        </div>
+                        <p className="text-sm text-gray-600">특정 학생의 SEL 발달 과정을 심층 분석합니다</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 학생 선택 (개별 분석 시) */}
+                  {reportType === 'student' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">분석할 학생 선택</label>
+                      <select
+                        value={selectedStudentForReport}
+                        onChange={(e) => setSelectedStudentForReport(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="">학생을 선택하세요</option>
+                        {students.map((student) => (
+                          <option key={student.id} value={student.id}>
+                            {student.name} ({student.grade}학년)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* 기간 선택 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">분석 기간</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">시작일</label>
+                        <input
+                          type="date"
+                          value={reportDateRange.startDate}
+                          onChange={(e) => setReportDateRange(prev => ({
+                            ...prev,
+                            startDate: e.target.value
+                          }))}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">종료일</label>
+                        <input
+                          type="date"
+                          value={reportDateRange.endDate}
+                          onChange={(e) => setReportDateRange(prev => ({
+                            ...prev,
+                            endDate: e.target.value
+                          }))}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 생성 버튼 */}
+                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={() => setReportModalOpen(false)}
+                      disabled={generatingReport}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      onClick={generateReport}
+                      disabled={generatingReport}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      {generatingReport ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          AI 분석 중...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4 mr-2" />
+                          리포트 생성
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                // 생성된 리포트 표시
+                <div className="space-y-6">
+                  {/* 리포트 헤더 */}
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-lg border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">
+                          {reportType === 'student' 
+                            ? `${generatedReport.student?.name} SEL 분석 리포트`
+                            : `${classInfo?.className || '우리 학급'} SEL 종합 분석`
+                          }
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          분석 기간: {reportDateRange.startDate} ~ {reportDateRange.endDate}
+                          {reportType === 'student' && (
+                            <span className="ml-4">응답 수: {generatedReport.responseCount}개</span>
+                          )}
+                          {reportType === 'class' && (
+                            <span className="ml-4">
+                              참여율: {generatedReport.responseMetrics?.responseRate}% 
+                              ({generatedReport.responseMetrics?.totalResponses}개 응답)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="bg-white">
+                        AI 분석 완료
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* 학생 개별 리포트 */}
+                  {reportType === 'student' && generatedReport.analysis && (
+                    <div className="space-y-4">
+                      {/* SEL 5영역 점수 */}
+                      <div className="grid grid-cols-5 gap-4">
+                        {Object.entries(generatedReport.analysis).slice(0, 5).map(([domain, data]: [string, any]) => (
+                          <div key={domain} className="text-center p-4 bg-gray-50 rounded-lg">
+                            <div className="text-2xl font-bold text-purple-600 mb-1">
+                              {data.score || 0}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {domain === 'selfAwareness' ? '자기인식' :
+                               domain === 'selfManagement' ? '자기관리' :
+                               domain === 'socialAwareness' ? '사회인식' :
+                               domain === 'relationshipSkills' ? '관계기술' :
+                               domain === 'responsibleDecisionMaking' ? '책임의식' : domain}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 종합 인사이트 */}
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-blue-900 mb-2">주요 인사이트</h4>
+                        <ul className="space-y-1 text-sm text-blue-800">
+                          {generatedReport.analysis.overallInsights?.map((insight: string, index: number) => (
+                            <li key={index}>• {insight}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* 권장사항 */}
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-green-900 mb-2">지도 권장사항</h4>
+                        <ul className="space-y-1 text-sm text-green-800">
+                          {generatedReport.analysis.recommendations?.map((rec: string, index: number) => (
+                            <li key={index}>• {rec}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* 주의사항 */}
+                      {generatedReport.analysis.concerns?.length > 0 && (
+                        <div className="bg-yellow-50 p-4 rounded-lg">
+                          <h4 className="font-semibold text-yellow-900 mb-2">관심 영역</h4>
+                          <ul className="space-y-1 text-sm text-yellow-800">
+                            {generatedReport.analysis.concerns.map((concern: string, index: number) => (
+                              <li key={index}>• {concern}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 학급 전체 리포트 */}
+                  {reportType === 'class' && generatedReport.analysis && (
+                    <div className="space-y-6">
+                      {/* 학급 개요 */}
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="text-center p-4 bg-blue-50 rounded-lg">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {generatedReport.analysis.classOverview?.totalStudents}명
+                          </div>
+                          <div className="text-sm text-gray-600">전체 학생</div>
+                        </div>
+                        <div className="text-center p-4 bg-green-50 rounded-lg">
+                          <div className="text-2xl font-bold text-green-600">
+                            {generatedReport.analysis.classOverview?.activeParticipants}명
+                          </div>
+                          <div className="text-sm text-gray-600">참여 학생</div>
+                        </div>
+                        <div className="text-center p-4 bg-purple-50 rounded-lg">
+                          <div className="text-2xl font-bold text-purple-600">
+                            {generatedReport.analysis.classOverview?.responseRate}%
+                          </div>
+                          <div className="text-sm text-gray-600">참여율</div>
+                        </div>
+                        <div className="text-center p-4 bg-orange-50 rounded-lg">
+                          <div className="text-2xl font-bold text-orange-600">
+                            {generatedReport.analysis.classOverview?.avgResponsesPerStudent}개
+                          </div>
+                          <div className="text-sm text-gray-600">평균 응답</div>
+                        </div>
+                      </div>
+
+                      {/* SEL 영역별 학급 평균 */}
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-3">SEL 영역별 학급 평균</h4>
+                        <div className="space-y-3">
+                          {generatedReport.analysis.domainAnalysis && Object.entries(generatedReport.analysis.domainAnalysis).map(([domain, data]: [string, any]) => (
+                            <div key={domain} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <span className="font-medium">
+                                {domain === 'selfAwareness' ? '자기인식' :
+                                 domain === 'selfManagement' ? '자기관리' :
+                                 domain === 'socialAwareness' ? '사회인식' :
+                                 domain === 'relationshipSkills' ? '관계기술' :
+                                 domain === 'responsibleDecisionMaking' ? '책임의식' : domain}
+                              </span>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-32 bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className="bg-purple-600 h-2 rounded-full"
+                                    style={{ width: `${(data.classAverage || 0)}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-sm font-medium w-8">{data.classAverage || 0}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 학급 강점 */}
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-green-900 mb-2">학급 강점</h4>
+                        <ul className="space-y-1 text-sm text-green-800">
+                          {generatedReport.analysis.classInsights?.strengths?.map((strength: string, index: number) => (
+                            <li key={index}>• {strength}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* 개선 영역 */}
+                      <div className="bg-yellow-50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-yellow-900 mb-2">개선 영역</h4>
+                        <ul className="space-y-1 text-sm text-yellow-800">
+                          {generatedReport.analysis.classInsights?.challenges?.map((challenge: string, index: number) => (
+                            <li key={index}>• {challenge}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* 교실 전략 권장사항 */}
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-blue-900 mb-2">교실 운영 전략</h4>
+                        <ul className="space-y-1 text-sm text-blue-800">
+                          {generatedReport.analysis.recommendations?.classroomStrategies?.map((strategy: string, index: number) => (
+                            <li key={index}>• {strategy}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 액션 버튼 */}
+                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setGeneratedReport(null);
+                        setReportModalOpen(false);
+                      }}
+                    >
+                      닫기
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        // TODO: PDF 다운로드 기능 구현
+                        alert('PDF 다운로드 기능은 곧 추가될 예정입니다.');
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      PDF 다운로드
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
