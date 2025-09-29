@@ -2,13 +2,10 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
-  signInWithRedirect, 
-  getRedirectResult,
+  signInWithPopup,
   signOut, 
   onAuthStateChanged, 
-  User,
-  GoogleAuthProvider,
-  signInWithPopup
+  User
 } from 'firebase/auth';
 import { 
   doc, 
@@ -98,17 +95,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Google 로그인 (Redirect 방식)
+  // Google 로그인 (Popup 방식 - CSP 문제 해결)
   const signInWithGoogle = async (role: 'teacher' | 'student'): Promise<void> => {
     try {
       setError(null);
       setLoading(true);
       
-      // 역할을 로컬 스토리지에 미리 저장 (redirect 후 복원용)
-      localStorage.setItem('userRole', role);
+      // Popup 방식 로그인 시도
+      const result = await signInWithPopup(auth, googleProvider);
       
-      // Redirect 방식 로그인 시작
-      await signInWithRedirect(auth, googleProvider);
+      if (result && result.user) {
+        // 로그인 성공 - 사용자 프로필 생성/업데이트
+        const profile = await createOrUpdateUserProfile(result.user, role);
+        setUser(result.user);
+        setUserProfile(profile);
+      }
       
     } catch (error) {
       console.error('Google 로그인 오류:', error);
@@ -138,7 +139,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signOut(auth);
       setUser(null);
       setUserProfile(null);
-      localStorage.removeItem('userRole');
     } catch (error) {
       console.error('로그아웃 오류:', error);
       setError('로그아웃 중 오류가 발생했습니다.');
@@ -150,27 +150,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
   };
 
-  // 인증 상태 리스너 및 Redirect 결과 처리
+  // 간단한 인증 상태 리스너
   useEffect(() => {
-    // Redirect 결과 확인
-    const checkRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          // Redirect 로그인 성공
-          const storedRole = localStorage.getItem('userRole') as 'teacher' | 'student' || 'student';
-          const profile = await createOrUpdateUserProfile(result.user, storedRole);
-          setUser(result.user);
-          setUserProfile(profile);
-        }
-      } catch (error) {
-        console.error('Redirect 결과 처리 오류:', error);
-        setError('로그인 처리 중 오류가 발생했습니다.');
-      }
-    };
-
-    checkRedirectResult();
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
@@ -184,8 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUserProfile(profileData);
           } else {
             // 프로필이 없으면 기본 학생 역할로 생성
-            const storedRole = localStorage.getItem('userRole') as 'teacher' | 'student' || 'student';
-            const profile = await createOrUpdateUserProfile(firebaseUser, storedRole);
+            const profile = await createOrUpdateUserProfile(firebaseUser, 'student');
             setUser(firebaseUser);
             setUserProfile(profile);
           }
