@@ -74,8 +74,24 @@ export function ClassMoodOverview({ classCode }: ClassMoodOverviewProps) {
 
   // 학생 이름 찾기 함수
   const getStudentName = (studentId: string) => {
-    const student = students.find(s => s.id === studentId);
-    return student?.name || '알 수 없음';
+    console.log('🔍 [getStudentName] 학생 이름 검색:', {
+      찾는_studentId: studentId,
+      전체_학생수: students.length,
+      학생_ID_목록: students.map(s => ({ id: s.id, name: s.name, userId: s.userId }))
+    });
+    
+    // id로 먼저 검색
+    let student = students.find(s => s.id === studentId);
+    
+    // id로 못찾으면 userId로 검색 (Firebase Auth UID)
+    if (!student) {
+      student = students.find(s => s.userId === studentId);
+      console.log('🔄 [getStudentName] userId로 재검색 결과:', student ? `찾음: ${student.name}` : '못찾음');
+    }
+    
+    const result = student?.name || '알 수 없음';
+    console.log('✅ [getStudentName] 최종 결과:', result, student ? `(${student.id})` : '(매칭 실패)');
+    return result;
   };
 
   // 감정별 통계
