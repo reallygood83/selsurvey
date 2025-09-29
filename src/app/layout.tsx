@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { FirebaseProvider } from '@/contexts/FirebaseContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { SettingsProvider } from '@/contexts/SettingsContext';
 import { Toaster } from '@/components/ui/toaster';
@@ -30,12 +31,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          <SettingsProvider>
-            {children}
-            <Toaster />
-          </SettingsProvider>
-        </AuthProvider>
+        <FirebaseProvider>
+          <AuthProvider>
+            <SettingsProvider>
+              {children}
+              <Toaster />
+            </SettingsProvider>
+          </AuthProvider>
+        </FirebaseProvider>
       </body>
     </html>
   );
