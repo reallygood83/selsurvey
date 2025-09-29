@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
 // Firebase configuration with safe fallbacks
 const firebaseConfig = {
@@ -18,6 +18,27 @@ let auth = null;
 let db = null;
 let googleProvider = null;
 
+// Connection retry configuration
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY = 1000; // 1 second
+
+// Helper function for retry logic
+async function retryOperation<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
+  let lastError;
+  for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      console.warn(`${operationName} failed (attempt ${attempt}/${MAX_RETRY_ATTEMPTS}):`, error);
+      if (attempt < MAX_RETRY_ATTEMPTS) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * attempt));
+      }
+    }
+  }
+  throw lastError;
+}
+
 try {
   // Only initialize if we have the minimum required configuration
   if (firebaseConfig.apiKey && firebaseConfig.projectId) {
@@ -28,9 +49,24 @@ try {
       app = getApp();
     }
 
-    // Initialize Firebase services
+    // Initialize Firebase services with retry logic
     auth = getAuth(app);
     db = getFirestore(app);
+    
+    // Configure Firestore for better connection handling
+    try {
+      // Enable offline persistence for better reliability
+      if (typeof window !== 'undefined') {
+        retryOperation(async () => {
+          await db.enableNetwork();
+          console.log('✅ Firestore network enabled successfully');
+        }, 'Enable Firestore network').catch(err => {
+          console.warn('⚠️ Firestore network enable failed after retries:', err);
+        });
+      }
+    } catch (err) {
+      console.warn('⚠️ Firestore configuration error:', err);
+    }
 
     // Configure Google Provider
     googleProvider = new GoogleAuthProvider();
@@ -46,6 +82,23 @@ try {
   // Don't throw - allow app to continue without Firebase
 }
 
+// Utility function for safe Firestore operations
+export const safeFirestoreOperation = async <T>(
+  operation: () => Promise<T>,
+  operationName: string = 'Firestore operation'
+): Promise<T | null> => {
+  try {
+    if (!db) {
+      console.warn(`⚠️ ${operationName}: Firestore not initialized`);
+      return null;
+    }
+    return await retryOperation(operation, operationName);
+  } catch (error) {
+    console.error(`❌ ${operationName} failed:`, error);
+    return null;
+  }
+};
+
 // Export services with null fallbacks
-export { auth, db, googleProvider };
+export { auth, db, googleProvider, retryOperation, safeFirestoreOperation };
 export default app;
