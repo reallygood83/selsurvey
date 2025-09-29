@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity } from 'lucide-react';
+import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity, MessageSquare } from 'lucide-react';
 import { StudentAnalysisCard } from '@/components/teacher/StudentAnalysisCard';
 import { ClassMoodOverview } from '@/components/teacher/ClassMoodOverview';
 import { StudentEmotionChart } from '@/components/teacher/StudentEmotionChart';
@@ -25,6 +25,8 @@ export default function TeacherDashboardPage() {
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [recentResponses, setRecentResponses] = useState<SurveyResponse[]>([]);
   const [existingSurveys, setExistingSurveys] = useState<Survey[]>([]);
+  const [selectedResponse, setSelectedResponse] = useState<SurveyResponse | null>(null);
+  const [responseModalOpen, setResponseModalOpen] = useState(false);
   const [stats, setStats] = useState({
     totalStudents: 0,
     activeStudents: 0,
@@ -48,6 +50,28 @@ export default function TeacherDashboardPage() {
       loadDashboardData();
     }
   }, [user, userProfile, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 학생 이름 찾기 함수 (ClassMoodOverview와 동일한 로직)
+  const getStudentName = (studentId: string) => {
+    console.log('🔍 [getStudentName] 학생 이름 검색:', {
+      찾는_studentId: studentId,
+      전체_학생수: students.length,
+      학생_ID_목록: students.map(s => ({ id: s.id, name: s.name, userId: s.userId }))
+    });
+    
+    // id로 먼저 검색
+    let student = students.find(s => s.id === studentId);
+    
+    // id로 못찾으면 userId로 검색 (Firebase Auth UID)
+    if (!student) {
+      student = students.find(s => s.userId === studentId);
+      console.log('🔄 [getStudentName] userId로 재검색 결과:', student ? `찾음: ${student.name}` : '못찾음');
+    }
+    
+    const result = student?.name || '알 수 없음';
+    console.log('✅ [getStudentName] 최종 결과:', result, student ? `(${student.id})` : '(매칭 실패)');
+    return result;
+  };
 
   const loadDashboardData = async () => {
     if (!user || !userProfile?.schoolInfo?.classCode) return;
@@ -867,23 +891,36 @@ export default function TeacherDashboardPage() {
               ) : (
                 <div className="space-y-4">
                   {recentResponses.map((response) => (
-                    <div key={response.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div 
+                      key={response.id} 
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer border border-transparent hover:border-purple-200"
+                      onClick={() => {
+                        setSelectedResponse(response);
+                        setResponseModalOpen(true);
+                      }}
+                    >
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                           <Activity className="w-5 h-5 text-purple-600" />
                         </div>
                         <div>
                           <div className="text-sm font-semibold text-gray-900">
-                            {response.surveyType === 'daily' ? '일일 체크' : 
-                             response.surveyType === 'weekly' ? '주간 설문' : '월간 설문'}
+                            {getStudentName(response.studentId)} 
+                            <span className="text-gray-400 ml-2">
+                              ({response.surveyType === 'daily' ? '일일 체크' : 
+                                response.surveyType === 'weekly' ? '주간 설문' : '월간 설문'})
+                            </span>
                           </div>
                           <div className="text-xs text-gray-500">
                             {response.submittedAt.toLocaleString()}
                           </div>
                         </div>
                       </div>
-                      <div className="text-sm font-medium text-gray-600">
-                        응답 {response.responses.length}개
+                      <div className="flex items-center space-x-2">
+                        <div className="text-sm font-medium text-gray-600">
+                          응답 {response.responses.length}개
+                        </div>
+                        <MessageSquare className="w-4 h-4 text-gray-400" />
                       </div>
                     </div>
                   ))}
@@ -893,6 +930,82 @@ export default function TeacherDashboardPage() {
           </Card>
         </main>
       </div>
+
+      {/* 설문 응답 상세보기 모달 */}
+      {responseModalOpen && selectedResponse && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {getStudentName(selectedResponse.studentId)}의 설문 응답
+                </h2>
+                <button
+                  onClick={() => setResponseModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">설문 유형:</span>{' '}
+                  {selectedResponse.surveyType === 'daily' ? '일일 체크' : 
+                   selectedResponse.surveyType === 'weekly' ? '주간 설문' : '월간 설문'}
+                </div>
+                <div className="text-sm text-gray-600 mt-1">
+                  <span className="font-medium">제출 시간:</span>{' '}
+                  {selectedResponse.submittedAt.toLocaleString()}
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="font-semibold text-gray-900">설문 응답 내용</h3>
+                {selectedResponse.responses.map((response, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                          {response.domain} 영역
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          #{index + 1}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-gray-900">
+                      <div className="mb-2">
+                        <span className="text-sm font-medium text-gray-700">질문:</span>
+                        <div className="text-sm text-gray-600 mt-1">
+                          {response.questionId}
+                        </div>
+                      </div>
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <span className="text-sm font-medium text-blue-700">응답:</span>
+                        <div className="text-blue-900 mt-1 font-medium">
+                          {Array.isArray(response.answer) 
+                            ? response.answer.join(', ')
+                            : response.answer}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-6 flex justify-end">
+                <Button
+                  onClick={() => setResponseModalOpen(false)}
+                  variant="outline"
+                >
+                  닫기
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
