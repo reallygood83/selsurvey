@@ -28,7 +28,7 @@ export default function HomePage() {
         router.push('/student/dashboard');
       }
     }
-  }, [user, userProfile, loading, router]);
+  }, [user, userProfile, loading]); // router 제거
 
   if (loading) {
     return (

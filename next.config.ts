@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin-allow-popups'
+            value: 'unsafe-none'
           },
           // HTTP/2 연결 최적화를 위한 추가 헤더
           {

@@ -67,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         displayName: firebaseUser.displayName,
         photoURL: firebaseUser.photoURL,
         role: existingData.role || role,
+        schoolInfo: existingData.schoolInfo || undefined,
         createdAt: existingData.createdAt?.toDate() || now,
         lastLoginAt: now,
       };
@@ -183,7 +184,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userSnap = await getDoc(userRef);
           
           if (userSnap.exists()) {
-            const profileData = userSnap.data() as UserProfile;
+            const data = userSnap.data();
+            const profileData: UserProfile = {
+              uid: data.uid || firebaseUser.uid,
+              email: data.email || firebaseUser.email,
+              displayName: data.displayName || firebaseUser.displayName,
+              photoURL: data.photoURL || firebaseUser.photoURL,
+              role: data.role || 'student',
+              schoolInfo: data.schoolInfo || undefined,
+              createdAt: data.createdAt?.toDate() || new Date(),
+              lastLoginAt: data.lastLoginAt?.toDate() || new Date()
+            };
+            
+            console.log('👤 사용자 프로필 로드:', {
+              uid: profileData.uid,
+              role: profileData.role,
+              schoolInfo: profileData.schoolInfo
+            });
+            
             setUser(firebaseUser);
             setUserProfile(profileData);
           } else {
