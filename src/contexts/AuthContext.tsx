@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
-  signInWithPopup, 
+  signInWithRedirect, 
+  getRedirectResult,
   signOut, 
   onAuthStateChanged, 
   User 
@@ -95,22 +96,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Google 로그인
+  // Google 로그인 (Redirect 방식)
   const signInWithGoogle = async (role: 'teacher' | 'student'): Promise<void> => {
     try {
       setError(null);
       setLoading(true);
       
-      const result = await signInWithPopup(auth, googleProvider);
+      // 역할을 로컬 스토리지에 미리 저장 (redirect 후 복원용)
+      localStorage.setItem('userRole', role);
       
-      if (result.user) {
-        const profile = await createOrUpdateUserProfile(result.user, role);
-        setUser(result.user);
-        setUserProfile(profile);
-        
-        // 역할을 로컬 스토리지에 저장
-        localStorage.setItem('userRole', role);
-      }
+      // Redirect 방식 로그인 시작
+      await signInWithRedirect(auth, googleProvider);
+      
     } catch (error) {
       console.error('Google 로그인 오류:', error);
       
@@ -120,19 +117,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error && typeof error === 'object' && 'code' in error) {
         const authError = error as { code: string };
         
-        if (authError.code === 'auth/popup-blocked') {
-          errorMessage = '팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.';
-        } else if (authError.code === 'auth/popup-closed-by-user') {
-          errorMessage = '로그인 창이 닫혔습니다. 다시 시도해주세요.';
-        } else if (authError.code === 'auth/network-request-failed') {
+        if (authError.code === 'auth/network-request-failed') {
           errorMessage = '네트워크 연결을 확인해주세요.';
+        } else if (authError.code === 'auth/cancelled-popup-request') {
+          errorMessage = '로그인이 취소되었습니다. 다시 시도해주세요.';
         }
       }
       
       setError(errorMessage);
-      throw error;
-    } finally {
       setLoading(false);
+      throw error;
     }
   };
 
@@ -154,8 +148,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
   };
 
-  // 인증 상태 리스너
+  // 인증 상태 리스너 및 Redirect 결과 처리
   useEffect(() => {
+    // Redirect 결과 확인
+    const checkRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          // Redirect 로그인 성공
+          const storedRole = localStorage.getItem('userRole') as 'teacher' | 'student' || 'student';
+          const profile = await createOrUpdateUserProfile(result.user, storedRole);
+          setUser(result.user);
+          setUserProfile(profile);
+        }
+      } catch (error) {
+        console.error('Redirect 결과 처리 오류:', error);
+        setError('로그인 처리 중 오류가 발생했습니다.');
+      }
+    };
+
+    checkRedirectResult();
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
