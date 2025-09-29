@@ -16,7 +16,7 @@ import { Loader2, LogOut, Target, FileText, BarChart3, Clock, Heart } from 'luci
 import MoodMeter from '@/components/student/MoodMeter';
 
 export default function StudentDashboardPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const router = useRouter();
   
   const [loading, setLoading] = useState(true);
@@ -33,13 +33,27 @@ export default function StudentDashboardPage() {
   }>>([]);
 
   useEffect(() => {
+    // AuthContext 로딩 중이면 기다림 (새로고침 시 로그아웃 방지)
+    if (authLoading) {
+      console.log('🔄 [StudentDashboard] AuthContext 로딩 중...');
+      return;
+    }
+
     if (!user || userProfile?.role !== 'student') {
+      console.log('❌ [StudentDashboard] 인증 실패 - 로그인 페이지로 리다이렉트:', { 
+        user: !!user, 
+        userRole: userProfile?.role 
+      });
       router.push('/auth/login?role=student');
       return;
     }
 
+    console.log('✅ [StudentDashboard] 학생 인증 확인됨:', { 
+      uid: user.uid, 
+      role: userProfile.role 
+    });
     loadStudentData();
-  }, [user, userProfile, router]);
+  }, [user, userProfile, router, authLoading]);
 
   const loadStudentData = async () => {
     if (!user || !userProfile) return;
@@ -176,10 +190,15 @@ export default function StudentDashboardPage() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">
+            {authLoading ? '로그인 상태 확인 중...' : '데이터 로딩 중...'}
+          </p>
+        </div>
       </div>
     );
   }

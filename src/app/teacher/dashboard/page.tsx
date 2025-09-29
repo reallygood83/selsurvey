@@ -17,7 +17,7 @@ import { StudentEmotionChart } from '@/components/teacher/StudentEmotionChart';
 import { StudentInviteLink } from '@/components/teacher/StudentInviteLink';
 
 export default function TeacherDashboardPage() {
-  const { user, userProfile, logout } = useAuth();
+  const { user, userProfile, logout, loading: authLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -33,10 +33,21 @@ export default function TeacherDashboardPage() {
   });
 
   useEffect(() => {
+    // AuthContext 로딩 중이면 기다림 (새로고침 시 로그아웃 방지)
+    if (authLoading) {
+      console.log('🔄 [TeacherDashboard] AuthContext 로딩 중...');
+      return;
+    }
+
     if (user && userProfile?.role === 'teacher' && userProfile.schoolInfo?.classCode) {
+      console.log('✅ [TeacherDashboard] 교사 인증 확인됨:', {
+        uid: user.uid,
+        role: userProfile.role,
+        classCode: userProfile.schoolInfo.classCode
+      });
       loadDashboardData();
     }
-  }, [user, userProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, userProfile, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadDashboardData = async () => {
     if (!user || !userProfile?.schoolInfo?.classCode) return;
@@ -166,10 +177,15 @@ export default function TeacherDashboardPage() {
     );
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">
+            {authLoading ? '로그인 상태 확인 중...' : '대시보드 데이터 로딩 중...'}
+          </p>
+        </div>
       </div>
     );
   }
