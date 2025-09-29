@@ -130,9 +130,21 @@ ${grade === '3-4' ?
 
     const fullPrompt = `${systemPrompt}\n\n## 사용자 맞춤 요청:\n**주제**: ${prompt}\n**특별 요구사항**: ${surveyType !== 'SEL' ? surveyType : '표준 SEL 설문'}\n\n위 지침에 따라 교육현장에서 바로 사용할 수 있는 고품질 SEL 설문을 JSON 형식으로 생성해주세요.`;
 
+    console.log('Gemini API 호출 시작:', {
+      prompt: fullPrompt.substring(0, 100) + '...',
+      apiKeyLength: apiKey.length,
+      timestamp: new Date().toISOString()
+    });
+
     const result = await model.generateContent(fullPrompt);
     const response = await result.response;
     const text = response.text();
+    
+    console.log('Gemini API 응답 수신:', {
+      responseLength: text.length,
+      responsePreview: text.substring(0, 200) + '...',
+      timestamp: new Date().toISOString()
+    });
 
     // JSON 부분만 추출 (더 정확한 파싱)
     const jsonMatch = text.match(/\{[\s\S]*\}/);
