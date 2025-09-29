@@ -1,104 +1,181 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
 
-// Firebase configuration with safe fallbacks
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
+// Get environment variables with fallbacks and debugging
+const getEnvVar = (key: string): string => {
+  const value = process.env[key] || '';
+  
+  // Debug: Log environment variable status (only once per key)
+  if (!value && typeof window !== 'undefined') {
+    console.warn(`🔍 Environment variable ${key} is not set or empty`);
+  }
+  
+  return value;
 };
 
-// Initialize Firebase services safely
-let app = null;
-let auth = null;
-let db = null;
-let googleProvider = null;
+// Firebase configuration object
+const firebaseConfig = {
+  apiKey: getEnvVar('NEXT_PUBLIC_FIREBASE_API_KEY'),
+  authDomain: getEnvVar('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'),
+  projectId: getEnvVar('NEXT_PUBLIC_FIREBASE_PROJECT_ID'),
+  storageBucket: getEnvVar('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: getEnvVar('NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: getEnvVar('NEXT_PUBLIC_FIREBASE_APP_ID'),
+  measurementId: getEnvVar('NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID'),
+};
 
-// Connection retry configuration
-const MAX_RETRY_ATTEMPTS = 3;
-const RETRY_DELAY = 1000; // 1 second
-
-// Helper function for retry logic
-async function retryOperation<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
-  let lastError;
-  for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      console.warn(`${operationName} failed (attempt ${attempt}/${MAX_RETRY_ATTEMPTS}):`, error);
-      if (attempt < MAX_RETRY_ATTEMPTS) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * attempt));
-      }
-    }
-  }
-  throw lastError;
+// Debug: Log all environment variables (development only)
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  console.log('🔧 Firebase Environment Variables Debug:');
+  console.log('NEXT_PUBLIC_FIREBASE_API_KEY:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? '[SET]' : '[MISSING]');
+  console.log('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:', process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? '[SET]' : '[MISSING]');
+  console.log('NEXT_PUBLIC_FIREBASE_PROJECT_ID:', process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? '[SET]' : '[MISSING]');
+  console.log('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:', process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? '[SET]' : '[MISSING]');
+  console.log('NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:', process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ? '[SET]' : '[MISSING]');
+  console.log('NEXT_PUBLIC_FIREBASE_APP_ID:', process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? '[SET]' : '[MISSING]');
 }
 
+// Check if configuration is valid
+function isConfigValid(): boolean {
+  const required = [
+    firebaseConfig.apiKey,
+    firebaseConfig.authDomain,
+    firebaseConfig.projectId,
+    firebaseConfig.storageBucket,
+    firebaseConfig.messagingSenderId,
+    firebaseConfig.appId
+  ];
+  
+  const isValid = required.every(value => value && value.length > 0);
+  
+  // Debug: Log environment variables status
+  if (!isValid) {
+    console.warn('❌ Firebase environment variables not set. Firebase services will not be available.');
+    console.warn('Required environment variables:', [
+      'NEXT_PUBLIC_FIREBASE_API_KEY',
+      'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', 
+      'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+      'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+      'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+      'NEXT_PUBLIC_FIREBASE_APP_ID'
+    ]);
+    console.warn('Current config values:', {
+      apiKey: firebaseConfig.apiKey ? '[SET]' : '[MISSING]',
+      authDomain: firebaseConfig.authDomain ? '[SET]' : '[MISSING]',
+      projectId: firebaseConfig.projectId ? '[SET]' : '[MISSING]',
+      storageBucket: firebaseConfig.storageBucket ? '[SET]' : '[MISSING]',
+      messagingSenderId: firebaseConfig.messagingSenderId ? '[SET]' : '[MISSING]',
+      appId: firebaseConfig.appId ? '[SET]' : '[MISSING]'
+    });
+  }
+  
+  return isValid;
+}
+
+// Initialize Firebase services
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
+let googleProvider: GoogleAuthProvider | null = null;
+
+// Initialize Firebase only if config is valid
 try {
-  // Only initialize if we have the minimum required configuration
-  if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+  if (isConfigValid()) {
+    // Initialize Firebase app
     if (getApps().length === 0) {
       app = initializeApp(firebaseConfig);
-      console.log('✅ Firebase initialized successfully:', firebaseConfig.projectId);
     } else {
       app = getApp();
     }
 
-    // Initialize Firebase services with retry logic
+    // Initialize services
     auth = getAuth(app);
     db = getFirestore(app);
     
-    // Configure Firestore for better connection handling
-    try {
-      // Enable offline persistence for better reliability
-      if (typeof window !== 'undefined') {
-        retryOperation(async () => {
-          await db.enableNetwork();
-          console.log('✅ Firestore network enabled successfully');
-        }, 'Enable Firestore network').catch(err => {
-          console.warn('⚠️ Firestore network enable failed after retries:', err);
-        });
-      }
-    } catch (err) {
-      console.warn('⚠️ Firestore configuration error:', err);
-    }
-
     // Configure Google Provider
     googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
     googleProvider.addScope('profile');
     googleProvider.addScope('email');
+    
+    console.log('✅ Firebase initialized successfully');
   } else {
-    console.warn('⚠️ Firebase environment variables not set. Firebase services will not be available.');
-    console.warn('Required environment variables:', Object.keys(firebaseConfig));
+    console.warn('⚠️ Firebase configuration incomplete - some features may not work');
+    console.warn('Missing environment variables. Please check your .env.local file.');
   }
 } catch (error) {
-  console.error('❌ Firebase initialization failed:', error);
-  // Don't throw - allow app to continue without Firebase
+  console.error('❌ Firebase initialization error:', error);
 }
 
-// Utility function for safe Firestore operations
-export const safeFirestoreOperation = async <T>(
-  operation: () => Promise<T>,
-  operationName: string = 'Firestore operation'
-): Promise<T | null> => {
-  try {
-    if (!db) {
-      console.warn(`⚠️ ${operationName}: Firestore not initialized`);
-      return null;
-    }
-    return await retryOperation(operation, operationName);
-  } catch (error) {
-    console.error(`❌ ${operationName} failed:`, error);
-    return null;
+// Firestore REST API client for fallback
+class FirestoreRestClient {
+  private baseUrl: string;
+  private projectId: string;
+  private apiKey: string;
+
+  constructor() {
+    this.projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '';
+    this.apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '';
+    this.baseUrl = `https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents`;
   }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      if (!this.projectId || !this.apiKey) {
+        return false;
+      }
+
+      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('REST client connection test failed:', error);
+      return false;
+    }
+  }
+}
+
+// Create REST client instance
+const restClient = new FirestoreRestClient();
+
+// Export Firebase services
+export { app, auth, db, googleProvider, restClient };
+
+// Utility functions
+export const isFirebaseAvailable = (): boolean => {
+  return app !== null && auth !== null && db !== null;
 };
 
-// Export services with null fallbacks
-export { auth, db, googleProvider, retryOperation, safeFirestoreOperation };
-export default app;
+export const getFirebaseConfig = () => {
+  return {
+    apiKey: firebaseConfig.apiKey || '',
+    authDomain: firebaseConfig.authDomain || '',
+    projectId: firebaseConfig.projectId || '',
+    storageBucket: firebaseConfig.storageBucket || '',
+    messagingSenderId: firebaseConfig.messagingSenderId || '',
+    appId: firebaseConfig.appId || '',
+    measurementId: firebaseConfig.measurementId || '',
+  };
+};
+
+export const testFirebaseConnection = async () => {
+  const results = {
+    sdkAvailable: isFirebaseAvailable(),
+    restApiAvailable: false,
+    configValid: isConfigValid(),
+  };
+
+  try {
+    results.restApiAvailable = await restClient.testConnection();
+  } catch (error) {
+    console.error('REST API test failed:', error);
+  }
+
+  return results;
+};

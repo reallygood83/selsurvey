@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, isFirebaseAvailable, testFirebaseConnection } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 interface FirebaseContextType {
@@ -43,16 +43,20 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({ children }) 
   useEffect(() => {
     const initializeFirebase = async () => {
       try {
-        // Firebase가 이미 초기화되었는지 확인
-        if (db && auth) {
+        // Firebase 연결 테스트
+        const connectionTest = await testFirebaseConnection();
+        console.log('🔍 Firebase connection test results:', connectionTest);
+        
+        // Firebase SDK가 사용 가능한지 확인
+        if (isFirebaseAvailable()) {
           console.log('✅ Firebase services are available');
           setInitialized(true);
           
           // 인증 상태 리스너 설정
-          const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          const unsubscribe = onAuthStateChanged(auth!, async (firebaseUser) => {
             if (firebaseUser) {
               try {
-                const userRef = doc(db, 'users', firebaseUser.uid);
+                const userRef = doc(db!, 'users', firebaseUser.uid);
                 const userSnap = await getDoc(userRef);
                 
                 if (userSnap.exists()) {
@@ -76,8 +80,14 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({ children }) 
 
           return () => unsubscribe();
         } else {
-          console.warn('⚠️ Firebase services not available. Please check your environment variables.');
-          setError('Firebase services not available. Please check your .env.local file.');
+          // Firebase SDK를 사용할 수 없지만 REST API는 사용 가능한 경우
+          if (connectionTest.restApiAvailable) {
+            console.warn('⚠️ Firebase SDK not available, but REST API is accessible');
+            setError('Firebase SDK not available. Using limited functionality.');
+          } else {
+            console.warn('⚠️ Firebase services not available. Please check your environment variables.');
+            setError('Firebase services not available. Please check your .env.local file.');
+          }
           setLoading(false);
         }
       } catch (initError) {

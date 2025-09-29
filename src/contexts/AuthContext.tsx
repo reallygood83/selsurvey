@@ -13,7 +13,7 @@ import {
   setDoc, 
   serverTimestamp 
 } from 'firebase/firestore';
-import { auth, db, googleProvider } from '@/lib/firebase';
+import { auth, db, googleProvider, isFirebaseAvailable } from '@/lib/firebase';
 import { SchoolInfo } from '@/types';
 
 // 사용자 프로필 타입
@@ -49,6 +49,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 사용자 프로필 생성/업데이트
   const createOrUpdateUserProfile = async (firebaseUser: User, role: 'teacher' | 'student'): Promise<UserProfile> => {
+    if (!db) {
+      throw new Error('Firestore is not initialized');
+    }
+    
     const userRef = doc(db, 'users', firebaseUser.uid);
     const userSnap = await getDoc(userRef);
     
@@ -101,6 +105,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       setLoading(true);
       
+      if (!isFirebaseAvailable() || !auth || !googleProvider) {
+        throw new Error('⚠️ Firebase services not available. Please check your environment variables.');
+      }
+      
       // Popup 방식 로그인 시도
       const result = await signInWithPopup(auth, googleProvider);
       
@@ -136,6 +144,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 로그아웃
   const logout = async (): Promise<void> => {
     try {
+      if (!auth) {
+        throw new Error('Firebase Auth is not initialized');
+      }
+      
       await signOut(auth);
       setUser(null);
       setUserProfile(null);
@@ -152,6 +164,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 간단한 인증 상태 리스너
   useEffect(() => {
+    if (!auth || !db) {
+      console.warn('⚠️ Firebase services not available. Please check your environment variables.');
+      setLoading(false);
+      return;
+    }
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
