@@ -20,10 +20,14 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// 간단한 Google Provider 설정
+// CSP 호환 Google Provider 설정
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
+
+// 추가 보안 설정
+googleProvider.addScope('profile');
+googleProvider.addScope('email');
 
 export default app;

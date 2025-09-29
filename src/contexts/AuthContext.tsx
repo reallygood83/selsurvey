@@ -6,7 +6,9 @@ import {
   getRedirectResult,
   signOut, 
   onAuthStateChanged, 
-  User 
+  User,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { 
   doc, 
