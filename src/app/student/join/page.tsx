@@ -44,6 +44,8 @@ export default function StudentJoinPage() {
   const handleVerifyClassCode = async (codeToVerify?: string) => {
     const codeToCheck = codeToVerify || classCode;
     
+    console.log('🔍 반 코드 확인 시작:', codeToCheck);
+    
     if (codeToCheck.length !== 6) {
       setError('반 코드는 6자리여야 합니다.');
       return;
@@ -53,20 +55,25 @@ export default function StudentJoinPage() {
     setError(null);
 
     try {
+      console.log('📡 classService.getClassByCode 호출 중...');
       const foundClass = await classService.getClassByCode(codeToCheck);
+      console.log('🎯 반 검색 결과:', foundClass);
       
       if (!foundClass) {
+        console.log('❌ 반을 찾을 수 없음');
         setError('존재하지 않는 반 코드입니다. 다시 확인해주세요.');
         setClassInfo(null);
       } else if (!foundClass.isActive) {
+        console.log('🚫 비활성화된 반');
         setError('비활성화된 반입니다. 선생님께 문의해주세요.');
         setClassInfo(null);
       } else {
+        console.log('✅ 반 정보 확인됨:', foundClass);
         setClassInfo(foundClass);
         setError(null);
       }
     } catch (error) {
-      console.error('반 코드 확인 오류:', error);
+      console.error('💥 반 코드 확인 오류:', error);
       setError('반 코드 확인 중 오류가 발생했습니다.');
       setClassInfo(null);
     } finally {
@@ -260,7 +267,11 @@ export default function StudentJoinPage() {
                     id="studentName"
                     type="text"
                     value={studentName}
-                    onChange={(e) => setStudentName(e.target.value)}
+                    onChange={(e) => {
+                      const newName = e.target.value;
+                      setStudentName(newName);
+                      console.log('👤 이름 입력:', newName, '길이:', newName.trim().length, '버튼 활성화 조건:', !newName.trim() || loading);
+                    }}
                     placeholder="실명을 입력해주세요"
                   />
                 </div>
@@ -289,6 +300,13 @@ export default function StudentJoinPage() {
                     '반 참여하기'
                   )}
                 </Button>
+                
+                {/* 디버깅용 정보 */}
+                <div className="mt-2 text-xs text-gray-500">
+                  디버깅: classInfo={classInfo ? '✓' : '✗'}, 
+                  studentName='{studentName}' ({studentName.trim().length}글자), 
+                  loading={loading ? '✓' : '✗'}
+                </div>
               </div>
             )}
 
