@@ -4,7 +4,8 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
-    "public": ".next",
+    "site": "selsurvey",
+    "public": "out",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -21,16 +22,16 @@
         "source": "**",
         "headers": [
           {
-            "key": "Access-Control-Allow-Origin",
-            "value": "*"
+            "key": "X-Frame-Options",
+            "value": "SAMEORIGIN"
           },
           {
-            "key": "Access-Control-Allow-Methods",
-            "value": "GET, POST, OPTIONS"
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
           },
           {
-            "key": "Access-Control-Allow-Headers",
-            "value": "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+            "key": "Content-Security-Policy",
+            "value": "frame-src 'self' https://accounts.google.com https://*.google.com https://gohard-9a1f4.firebaseapp.com https://selsurvey.vercel.app"
           }
         ]
       }
