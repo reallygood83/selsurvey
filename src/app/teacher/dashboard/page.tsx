@@ -82,8 +82,55 @@ export default function TeacherDashboardPage() {
     return result;
   };
 
+  // 질문 내용을 가져오는 함수
+  const getQuestionContent = (questionId: string, surveyId?: string): string => {
+    console.log('🔍 [getQuestionContent] 질문 검색:', { questionId, surveyId });
+    
+    // 모든 설문에서 해당 questionId를 가진 질문을 찾기
+    for (const survey of existingSurveys) {
+      const question = survey.questions?.find(q => q.id === questionId);
+      if (question) {
+        console.log('✅ [getQuestionContent] 질문 찾음:', question.question);
+        return question.question;
+      }
+    }
+    
+    // 질문을 찾지 못한 경우 기본 질문들 확인
+    const defaultQuestions: { [key: string]: string } = {
+      'sa1': '오늘 나의 기분은 어떤가요?',
+      'sa2': '지금 내 감정 상태를 가장 잘 표현한다면?',
+      'sm1': '어려운 일이 있을 때 나는 어떻게 대처하나요?',
+      'sm2': '화가 날 때 나는 보통 어떻게 하나요?',
+      'soc1': '친구들의 기분을 잘 알아차리는 편인가요?',
+      'soc2': '다른 사람이 도움이 필요할 때 알아차리나요?',
+      'rel1': '친구들과 잘 어울리나요?',
+      'rel2': '의견이 다를 때 어떻게 해결하나요?',
+      'rdm1': '선택을 할 때 무엇을 가장 중요하게 생각하나요?',
+      'rdm2': '문제가 생겼을 때 어떻게 해결하나요?'
+    };
+    
+    const defaultQuestion = defaultQuestions[questionId];
+    if (defaultQuestion) {
+      console.log('✅ [getQuestionContent] 기본 질문 사용:', defaultQuestion);
+      return defaultQuestion;
+    }
+    
+    console.log('❌ [getQuestionContent] 질문을 찾을 수 없음');
+    return `질문 (${questionId})`;
+  };
+
   // AI 리포트 생성 함수
   const generateReport = async () => {
+    console.log('🚀 [generateReport] 리포트 생성 시작:', {
+      classInfo: classInfo ? `${classInfo.schoolName} ${classInfo.grade}학년 ${classInfo.className}` : '없음',
+      user: user ? user.uid : '없음',
+      reportType,
+      selectedStudentForReport,
+      studentsCount: students.length,
+      recentResponsesCount: recentResponses.length,
+      dateRange: reportDateRange
+    });
+
     if (!classInfo || !user) {
       alert('학급 정보가 없습니다.');
       return;
@@ -1065,8 +1112,11 @@ export default function TeacherDashboardPage() {
                     <div className="text-gray-900">
                       <div className="mb-2">
                         <span className="text-sm font-medium text-gray-700">질문:</span>
-                        <div className="text-sm text-gray-600 mt-1">
-                          {response.questionId}
+                        <div className="text-sm text-gray-900 mt-1 font-medium">
+                          {getQuestionContent(response.questionId, selectedResponse.surveyId)}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          ID: {response.questionId}
                         </div>
                       </div>
                       <div className="bg-blue-50 p-3 rounded-lg">
@@ -1164,6 +1214,16 @@ export default function TeacherDashboardPage() {
                           </option>
                         ))}
                       </select>
+                      {/* 디버깅 정보 */}
+                      <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                        🔍 디버깅: 로드된 학생 수 {students.length}명 | 최근 응답 수 {recentResponses.length}개
+                        {students.length > 0 && (
+                          <div className="mt-1">
+                            학생 목록: {students.slice(0, 3).map(s => s.name).join(', ')}
+                            {students.length > 3 && ` 외 ${students.length - 3}명`}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
