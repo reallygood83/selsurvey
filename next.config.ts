@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
   },
   // Vercel 도메인을 위한 설정
   env: {
-    NEXTAUTH_URL: 'https://goodmind-six.vercel.app',
+    NEXTAUTH_URL: 'https://sel-emotion-platform.vercel.app',
   },
   // 배포를 위한 간소화된 설정
 };
