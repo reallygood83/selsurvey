@@ -16,8 +16,8 @@ export function createGeminiInstance(apiKey: string) {
 }
 
 // 기본 모델 (환경변수 사용) - 개발용
-const defaultApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || 'AIzaSyARRqhuICxrAl917lhbk2OatZdsEgRpXxM';
-export const model = createGeminiInstance(defaultApiKey);
+const defaultApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+export const model = defaultApiKey ? createGeminiInstance(defaultApiKey) : null;
 
 // SEL 영역별 분석 프롬프트 템플릿
 export const SEL_ANALYSIS_PROMPT = `
@@ -159,6 +159,10 @@ export async function analyzeSELData(studentInfo: Record<string, unknown>, respo
     // 사용자 API 키가 있으면 사용, 없으면 기본 모델 사용
     const geminiModel = userApiKey ? createGeminiInstance(userApiKey) : model;
     
+    if (!geminiModel) {
+      throw new Error('Gemini API 키가 설정되지 않았습니다. 환경 변수를 확인하거나 사용자 API 키를 제공해주세요.');
+    }
+    
     const prompt = SEL_ANALYSIS_PROMPT
       .replace('{grade}', String(studentInfo.grade))
       .replace('{studentInfo}', JSON.stringify(studentInfo))
@@ -202,6 +206,10 @@ export async function generateTeacherReport(classInfo: Record<string, unknown>, 
   try {
     const geminiModel = userApiKey ? createGeminiInstance(userApiKey) : model;
     
+    if (!geminiModel) {
+      throw new Error('Gemini API 키가 설정되지 않았습니다. 환경 변수를 확인하거나 사용자 API 키를 제공해주세요.');
+    }
+    
     const prompt = TEACHER_REPORT_PROMPT
       .replace('{classInfo}', JSON.stringify(classInfo))
       .replace('{studentData}', JSON.stringify(studentData))
@@ -222,6 +230,10 @@ export async function generateTeacherReport(classInfo: Record<string, unknown>, 
 export async function generateParentReport(childInfo: Record<string, unknown>, selAnalysis: Record<string, unknown>, growthTrend: Record<string, unknown>, userApiKey?: string) {
   try {
     const geminiModel = userApiKey ? createGeminiInstance(userApiKey) : model;
+    
+    if (!geminiModel) {
+      throw new Error('Gemini API 키가 설정되지 않았습니다. 환경 변수를 확인하거나 사용자 API 키를 제공해주세요.');
+    }
     
     const prompt = PARENT_REPORT_PROMPT
       .replace('{childInfo}', JSON.stringify(childInfo))

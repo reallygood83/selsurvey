@@ -36,6 +36,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 사용자 제공 API 키로 Gemini 인스턴스 생성
+    console.log('API 키 정보:', {
+      provided: !!apiKey,
+      length: apiKey?.length,
+      prefix: apiKey?.substring(0, 10) + '...',
+      timestamp: new Date().toISOString()
+    });
+    
     const model = createGeminiInstance(apiKey);
 
     // SEL 영역별 상세 정보 포함
@@ -192,7 +199,12 @@ ${grade === '3-4' ?
     });
 
   } catch (error: unknown) {
-    console.error('설문 생성 오류:', error);
+    console.error('설문 생성 오류 상세:', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
     
     // 상세한 오류 정보 제공
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
