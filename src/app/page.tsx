@@ -23,9 +23,13 @@ export default function HomePage() {
       if (userProfile.role === 'teacher') {
         console.log('👨‍🏫 교사 대시보드로 이동');
         router.push('/teacher/dashboard');
-      } else {
+      } else if (userProfile.role === 'student') {
         console.log('👨‍🎓 학생 대시보드로 이동');
         router.push('/student/dashboard');
+      } else {
+        console.log('⚠️ 알 수 없는 역할:', userProfile.role);
+        // 역할이 명확하지 않으면 로그인 페이지로 이동
+        router.push('/auth/login');
       }
     }
   }, [user, userProfile, loading]); // router 제거

@@ -5,14 +5,14 @@ service cloud.firestore {
     // 개발 단계: 모든 인증된 사용자에게 읽기/쓰기 허용
     // 프로덕션 배포 시 이 규칙을 수정해야 합니다!
     
-    // 개발 환경용: 모든 인증된 사용자에게 모든 문서 접근 허용
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-    
-    // 사용자 프로필 - 인증된 사용자만 자신의 데이터 접근
+    // 사용자 프로필 - 인증된 사용자가 자신의 데이터 접근 (최우선 규칙)
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 개발 환경용: 나머지 모든 컬렉션에 대한 접근 허용
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
     
     // 반 정보 - 교사는 자신의 반만, 학생은 읽기만

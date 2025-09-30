@@ -53,8 +53,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error('Firestore is not initialized');
     }
     
+    console.log('📝 사용자 프로필 문서 접근 시도:', {
+      uid: firebaseUser.uid,
+      role: role
+    });
+    
     const userRef = doc(db, 'users', firebaseUser.uid);
     const userSnap = await getDoc(userRef);
+    
+    console.log('📄 기존 사용자 문서 확인:', {
+      exists: userSnap.exists(),
+      uid: firebaseUser.uid
+    });
     
     const now = new Date();
     
@@ -109,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       setLoading(true);
       
-      console.log('🔐 Google 로그인 시도 시작:', { role });
+      console.log('🔐 Google 로그인 시도 시작:', { role, timestamp: new Date().toISOString() });
       
       if (!isFirebaseAvailable() || !auth || !googleProvider) {
         const errorMsg = '⚠️ Firebase services not available. Please check your environment variables.';
@@ -130,9 +140,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (result && result.user) {
         // 로그인 성공 - 사용자 프로필 생성/업데이트
-        console.log('🔐 사용자 프로필 생성/업데이트 시작...');
+        console.log('🔐 사용자 프로필 생성/업데이트 시작...', {
+          uid: result.user.uid,
+          email: result.user.email,
+          role: role
+        });
         const profile = await createOrUpdateUserProfile(result.user, role);
-        console.log('🔐 사용자 프로필 생성/업데이트 완료:', profile);
+        console.log('🔐 사용자 프로필 생성/업데이트 완료:', {
+          uid: profile.uid,
+          role: profile.role,
+          schoolInfo: profile.schoolInfo
+        });
         
         setUser(result.user);
         setUserProfile(profile);
