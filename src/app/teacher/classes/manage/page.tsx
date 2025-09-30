@@ -214,20 +214,30 @@ export default function ClassesManagePage() {
               )}
 
               <Button
-                onClick={() => handleEditClass(classInfo.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEditClass(classInfo.id);
+                }}
                 variant="outline"
                 size="sm"
                 className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                title="학급 수정"
               >
                 <Edit className="w-4 h-4" />
               </Button>
 
               <Button
-                onClick={() => handleDeleteClick(classInfo.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick(classInfo.id);
+                }}
                 variant="outline"
                 size="sm"
-                className="border-red-200 text-red-600 hover:bg-red-50"
+                className={`border-red-200 text-red-600 hover:bg-red-50 ${
+                  classInfo.isActive ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
                 disabled={classInfo.isActive}
+                title={classInfo.isActive ? '활성 학급은 삭제할 수 없습니다' : '학급 삭제'}
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
