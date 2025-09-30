@@ -89,6 +89,22 @@ export default function ClassesManagePage() {
     }
   };
 
+  // 활성 학급 비활성화
+  const handleDeactivateClass = async (classId: string) => {
+    if (!user || switchingClass) return;
+
+    try {
+      setSwitchingClass(classId);
+      await classService.updateClass(classId, { isActive: false });
+      await loadClasses(); // 목록 새로고침
+    } catch (err) {
+      console.error('학급 비활성화 오류:', err);
+      setError('학급 비활성화에 실패했습니다.');
+    } finally {
+      setSwitchingClass(null);
+    }
+  };
+
   // 학급 수정 페이지로 이동
   const handleEditClass = (classId: string) => {
     router.push(`/teacher/classes/edit/${classId}`);
@@ -196,7 +212,7 @@ export default function ClassesManagePage() {
                   ) : (
                     <>
                       <ArrowRight className="w-4 h-4 mr-1" />
-                      활성 학급으로 전환
+                      활성화
                     </>
                   )}
                 </Button>
@@ -204,12 +220,22 @@ export default function ClassesManagePage() {
 
               {classInfo.isActive && (
                 <Button
-                  onClick={() => router.push('/teacher/dashboard')}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => handleDeactivateClass(classInfo.id)}
+                  disabled={isSwitching}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
                   size="sm"
                 >
-                  <GraduationCap className="w-4 h-4 mr-1" />
-                  대시보드로 이동
+                  {isSwitching ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      처리 중...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                      비활성화
+                    </>
+                  )}
                 </Button>
               )}
 
@@ -233,11 +259,8 @@ export default function ClassesManagePage() {
                 }}
                 variant="outline"
                 size="sm"
-                className={`border-red-200 text-red-600 hover:bg-red-50 ${
-                  classInfo.isActive ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                disabled={classInfo.isActive}
-                title={classInfo.isActive ? '활성 학급은 삭제할 수 없습니다' : '학급 삭제'}
+                className="border-red-200 text-red-600 hover:bg-red-50"
+                title="학급 삭제"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -306,10 +329,10 @@ export default function ClassesManagePage() {
             <div className="text-sm text-blue-800">
               <p className="font-semibold mb-1">💡 학급 관리 안내</p>
               <ul className="list-disc list-inside space-y-1 text-blue-700">
-                <li>한 번에 하나의 학급만 활성화할 수 있습니다</li>
                 <li>활성 학급은 대시보드와 설문에서 사용됩니다</li>
+                <li>활성 학급을 비활성화하려면 "비활성화" 버튼을 클릭하세요</li>
                 <li>학급을 삭제하면 해당 학급의 학생들이 연결 해제됩니다</li>
-                <li>활성 학급은 삭제할 수 없습니다 (먼저 다른 학급을 활성화하세요)</li>
+                <li>삭제된 학급의 설문과 응답 데이터는 유지됩니다</li>
               </ul>
             </div>
           </div>
