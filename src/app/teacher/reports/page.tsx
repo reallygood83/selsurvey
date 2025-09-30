@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { classService, studentService, surveyService, analysisService } from '@/lib/firestore';
-import { generateTeacherReport } from '@/lib/gemini';
 import { ClassInfo, StudentProfile, SurveyResponse, SELAnalysis } from '@/types';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -14,7 +13,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowLeft, BarChart3, User, Brain, BookOpen, AlertCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, ArrowLeft, BarChart3, User, Brain, BookOpen, AlertCircle, FileText, MessageSquare } from 'lucide-react';
+import StudentResponseDetail from '@/components/teacher/StudentResponseDetail';
+import AIReportGenerator from '@/components/teacher/AIReportGenerator';
 
 export default function TeacherReportsPage() {
   const { user, userProfile } = useAuth();
@@ -28,8 +30,6 @@ export default function TeacherReportsPage() {
   const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
   const [studentAnalyses, setStudentAnalyses] = useState<SELAnalysis[]>([]);
   const [recentResponses, setRecentResponses] = useState<SurveyResponse[]>([]);
-  const [generatingReport, setGeneratingReport] = useState(false);
-  const [reportGenerated, setReportGenerated] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || userProfile?.role !== 'teacher') {
@@ -126,33 +126,6 @@ export default function TeacherReportsPage() {
     }
   };
 
-  const handleGenerateReport = async () => {
-    if (!selectedStudent || !selectedClass) return;
-
-    setGeneratingReport(true);
-
-    try {
-      // AI 리포트 생성
-      const classInfo = {
-        name: selectedClass.className,
-        grade: selectedClass.grade
-      };
-      
-      const studentData = {
-        student: selectedStudent,
-        analyses: studentAnalyses,
-        responses: recentResponses
-      };
-
-      const aiReport = await generateTeacherReport(classInfo, studentData, '최근 3개월');
-      setReportGenerated(aiReport);
-    } catch (error) {
-      console.error('리포트 생성 오류:', error);
-      alert('리포트 생성 중 오류가 발생했습니다.');
-    } finally {
-      setGeneratingReport(false);
-    }
-  };
 
   const getSELDomainName = (domain: string) => {
     const domainNames = {
@@ -284,36 +257,17 @@ export default function TeacherReportsPage() {
               </CardContent>
             </Card>
 
-            {/* 선택된 학생 정보 */}
+            {/* 선택된 학생 정보 - 탭 기반 인터페이스 */}
             <div className="lg:col-span-2">
               {selectedStudent ? (
                 <div className="space-y-6">
-                  {/* 학생 기본 정보 */}
+                  {/* 학생 기본 정보 헤더 */}
                   <Card>
                     <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center">
-                          <User className="w-5 h-5 mr-2" />
-                          {selectedStudent.name} 학생 상세 정보
-                        </CardTitle>
-                        <Button
-                          onClick={handleGenerateReport}
-                          disabled={generatingReport || studentAnalyses.length === 0}
-                          size="sm"
-                        >
-                          {generatingReport ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              AI 분석 중...
-                            </>
-                          ) : (
-                            <>
-                              <Brain className="w-4 h-4 mr-2" />
-                              AI 상담 리포트 생성
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                      <CardTitle className="flex items-center">
+                        <User className="w-5 h-5 mr-2" />
+                        {selectedStudent.name} 학생 상세 정보
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 gap-4">
@@ -339,110 +293,107 @@ export default function TeacherReportsPage() {
                     </CardContent>
                   </Card>
 
-                  {/* 최신 SEL 분석 결과 */}
-                  {studentAnalyses.length > 0 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center">
-                          <BarChart3 className="w-5 h-5 mr-2" />
-                          최신 SEL 분석 결과
-                          <Badge variant="secondary" className="ml-2">
-                            {format(studentAnalyses[0].analysisDate, 'M월 d일', { locale: ko })}
-                          </Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {Object.entries(studentAnalyses[0].scores).map(([domain, score]) => {
-                            const numScore = typeof score === 'number' ? score : 0;
-                            return (
-                              <div key={domain} className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium">
-                                    {getSELDomainName(domain)}
-                                  </span>
-                                  <Badge 
-                                    variant={numScore >= 4.0 ? 'default' : numScore >= 3.0 ? 'secondary' : numScore >= 2.0 ? 'outline' : 'destructive'}
-                                  >
-                                    {numScore.toFixed(1)}
-                                  </Badge>
-                                </div>
-                                <Progress value={(numScore / 5) * 100} className="h-2" />
-                              </div>
-                            );
-                          })}
-                        </div>
-                        
-                        {studentAnalyses[0].recommendations && (
-                          <Card className="mt-6 bg-blue-50 border-blue-200">
-                            <CardContent className="pt-4">
-                              <h4 className="font-medium text-blue-900 mb-2 flex items-center">
-                                <AlertCircle className="w-4 h-4 mr-2" />
-                                상담 권고사항
-                              </h4>
-                              <p className="text-sm text-blue-800">{studentAnalyses[0].recommendations}</p>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
+                  {/* 탭 기반 상세 정보 */}
+                  <Tabs defaultValue="responses" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="responses" className="flex items-center">
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        설문 응답 ({recentResponses.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="analysis" className="flex items-center">
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        SEL 분석 ({studentAnalyses.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="ai-report" className="flex items-center">
+                        <Brain className="w-4 h-4 mr-2" />
+                        AI 리포트
+                      </TabsTrigger>
+                    </TabsList>
 
-                  {/* 최근 설문 응답 */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <BookOpen className="w-5 h-5 mr-2" />
-                        최근 설문 응답
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {recentResponses.length === 0 ? (
-                        <div className="text-center text-muted-foreground py-4">
-                          아직 설문 응답이 없습니다
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {recentResponses.slice(0, 5).map((response) => (
-                            <Card key={response.id} className="p-3">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <div className="font-medium text-sm">
-                                    {response.surveyType === 'daily' && '일일 감정 체크'}
-                                    {response.surveyType === 'weekly' && '주간 설문'}
-                                    {response.surveyType === 'monthly' && '월간 종합 설문'}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {format(response.submittedAt, 'M월 d일 HH:mm', { locale: ko })}
-                                  </div>
+                    {/* 설문 응답 탭 */}
+                    <TabsContent value="responses" className="space-y-4">
+                      <StudentResponseDetail 
+                        responses={recentResponses}
+                        className="mt-4"
+                      />
+                    </TabsContent>
+
+                    {/* SEL 분석 탭 */}
+                    <TabsContent value="analysis" className="space-y-4">
+                      {studentAnalyses.length > 0 ? (
+                        <div className="space-y-4">
+                          {studentAnalyses.map((analysis, index) => (
+                            <Card key={analysis.id}>
+                              <CardHeader>
+                                <CardTitle className="flex items-center justify-between">
+                                  <span className="flex items-center">
+                                    <BarChart3 className="w-5 h-5 mr-2" />
+                                    SEL 분석 결과 #{studentAnalyses.length - index}
+                                  </span>
+                                  <Badge variant="secondary">
+                                    {format(analysis.analysisDate, 'M월 d일', { locale: ko })}
+                                  </Badge>
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-4">
+                                  {Object.entries(analysis.scores).map(([domain, score]) => {
+                                    const numScore = typeof score === 'number' ? score : 0;
+                                    return (
+                                      <div key={domain} className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm font-medium">
+                                            {getSELDomainName(domain)}
+                                          </span>
+                                          <Badge 
+                                            variant={numScore >= 4.0 ? 'default' : numScore >= 3.0 ? 'secondary' : numScore >= 2.0 ? 'outline' : 'destructive'}
+                                          >
+                                            {numScore.toFixed(1)}
+                                          </Badge>
+                                        </div>
+                                        <Progress value={(numScore / 5) * 100} className="h-2" />
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                                <Badge variant="default" className="text-xs">
-                                  완료
-                                </Badge>
-                              </div>
+                                
+                                {analysis.recommendations && (
+                                  <Card className="mt-6 bg-blue-50 border-blue-200">
+                                    <CardContent className="pt-4">
+                                      <h4 className="font-medium text-blue-900 mb-2 flex items-center">
+                                        <AlertCircle className="w-4 h-4 mr-2" />
+                                        상담 권고사항
+                                      </h4>
+                                      <p className="text-sm text-blue-800">{analysis.recommendations}</p>
+                                    </CardContent>
+                                  </Card>
+                                )}
+                              </CardContent>
                             </Card>
                           ))}
                         </div>
+                      ) : (
+                        <Card>
+                          <CardContent className="py-8">
+                            <div className="text-center text-muted-foreground">
+                              <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p>아직 SEL 분석 결과가 없습니다</p>
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
-                    </CardContent>
-                  </Card>
+                    </TabsContent>
 
-                  {/* AI 생성 리포트 */}
-                  {reportGenerated && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center">
-                          <Brain className="w-5 h-5 mr-2" />
-                          AI 상담 리포트
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="prose prose-sm max-w-none">
-                          <div className="whitespace-pre-wrap">{reportGenerated}</div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+                    {/* AI 리포트 탭 */}
+                    <TabsContent value="ai-report" className="space-y-4">
+                      <AIReportGenerator
+                        student={selectedStudent}
+                        responses={recentResponses}
+                        analyses={studentAnalyses}
+                        className="mt-4"
+                      />
+                    </TabsContent>
+                  </Tabs>
                 </div>
               ) : (
                 <Card>

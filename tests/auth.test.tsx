@@ -76,7 +76,7 @@ test.describe('Authentication System', () => {
     });
     
     // Attempt login
-    await page.click('[data-testid='teacher-login-btn']');
+    await page.click('[data-testid="teacher-login-btn"]');
     
     // Should redirect to Google OAuth (or show error if blocked)
     await page.waitForTimeout(2000);
