@@ -52,11 +52,10 @@ export default function TeacherDashboardPage() {
       return;
     }
 
-    if (user && userProfile?.role === 'teacher' && userProfile.schoolInfo?.classCode) {
+    if (user && userProfile?.role === 'teacher') {
       console.log('✅ [TeacherDashboard] 교사 인증 확인됨:', {
         uid: user.uid,
-        role: userProfile.role,
-        classCode: userProfile.schoolInfo.classCode
+        role: userProfile.role
       });
       loadDashboardData();
     }
@@ -230,87 +229,111 @@ export default function TeacherDashboardPage() {
   };
 
   const loadDashboardData = async () => {
-    if (!user || !userProfile?.schoolInfo?.classCode) return;
+    if (!user) return;
 
     setLoading(true);
     try {
-      // 반 정보 로드
-      const classData = await classService.getClassByCode(userProfile.schoolInfo.classCode);
-      
-      if (classData) {
-        setClassInfo(classData);
+      console.log('🔄 [Dashboard] 데이터 로드 시작:', { teacherId: user.uid });
 
-        // 학생 목록 로드
-        const studentsData = await studentService.getStudentsByClass(classData.classCode);
-        setStudents(studentsData);
+      // 활성 학급 가져오기 (새로운 다중 학급 시스템)
+      const activeClass = await classService.getActiveClass(user.uid);
 
-        // 최근 설문 응답 로드 - classCode 기반으로 직접 조회
-        console.log('📊 [Dashboard] 설문 응답 로드 시작:', {
-          classCode: classData.classCode
-        });
-        
-        let allResponses: SurveyResponse[] = [];
-        
-        try {
-          // classCode 기반으로 모든 설문 응답 조회
-          allResponses = await surveyService.getResponsesByClass(classData.classCode);
-          console.log(`✅ [Dashboard] 반별 설문 응답 조회 완료: ${allResponses.length}개`);
-          
-          // 추가 로그: 응답 데이터 구조 확인
-          if (allResponses.length > 0) {
-            console.log('📋 [Dashboard] 설문 응답 샘플:', {
-              firstResponse: {
-                id: allResponses[0].id,
-                surveyType: allResponses[0].surveyType,
-                studentId: allResponses[0].studentId,
-                classCode: allResponses[0].classCode,
-                submittedAt: allResponses[0].submittedAt
-              }
-            });
-          }
-          
-          // 최근 10개만 선택
-          setRecentResponses(allResponses.slice(0, 10));
-        } catch (error) {
-          console.error('❌ [Dashboard] 설문 응답 로드 오류:', error);
-          setRecentResponses([]);
-        }
-        
-        // 설문 목록도 로드 (기존 설문 관리를 위해)
-        const surveysData = await surveyService.getSurveysByTeacher(user.uid);
-        console.log('🔍 [Dashboard] 교사 설문 목록:', surveysData.length, '개');
-
-        // 설문 목록을 상태에 저장 (이미 위에서 로드함)
-        setExistingSurveys(surveysData);
-
-        // 통계 계산
-        const today = new Date();
-        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-        
-        const todayResponsesCount = allResponses.filter(response => 
-          response.submittedAt.toDateString() === today.toDateString()
-        ).length;
-
-        const weeklyResponsesCount = allResponses.filter(response => 
-          response.submittedAt >= weekAgo
-        ).length;
-
-        const activeStudentsCount = studentsData.filter(student => 
-          student.lastResponseDate && 
-          new Date(student.lastResponseDate).toDateString() === today.toDateString()
-        ).length;
-
+      if (!activeClass) {
+        console.log('⚠️ [Dashboard] 활성 학급 없음');
+        setClassInfo(null);
+        setStudents([]);
+        setRecentResponses([]);
         setStats({
-          totalStudents: studentsData.length,
-          activeStudents: activeStudentsCount,
-          todayResponses: todayResponsesCount,
-          weeklyParticipation: studentsData.length > 0 
-            ? Math.round((weeklyResponsesCount / studentsData.length) * 100) 
-            : 0
+          totalStudents: 0,
+          activeStudents: 0,
+          todayResponses: 0,
+          weeklyParticipation: 0
         });
+        setLoading(false);
+        return;
       }
+
+      console.log('✅ [Dashboard] 활성 학급 확인:', {
+        className: activeClass.className,
+        classCode: activeClass.classCode,
+        studentCount: activeClass.studentCount
+      });
+
+      setClassInfo(activeClass);
+
+      // 학생 목록 로드
+      const studentsData = await studentService.getStudentsByClass(activeClass.classCode);
+      setStudents(studentsData);
+      console.log('✅ [Dashboard] 학생 목록 로드:', studentsData.length, '명');
+
+      // 최근 설문 응답 로드 - classCode 기반으로 직접 조회
+      console.log('📊 [Dashboard] 설문 응답 로드 시작:', {
+        classCode: activeClass.classCode
+      });
+
+      let allResponses: SurveyResponse[] = [];
+
+      try {
+        // classCode 기반으로 모든 설문 응답 조회
+        allResponses = await surveyService.getResponsesByClass(activeClass.classCode);
+        console.log(`✅ [Dashboard] 반별 설문 응답 조회 완료: ${allResponses.length}개`);
+
+        // 추가 로그: 응답 데이터 구조 확인
+        if (allResponses.length > 0) {
+          console.log('📋 [Dashboard] 설문 응답 샘플:', {
+            firstResponse: {
+              id: allResponses[0].id,
+              surveyType: allResponses[0].surveyType,
+              studentId: allResponses[0].studentId,
+              classCode: allResponses[0].classCode,
+              submittedAt: allResponses[0].submittedAt
+            }
+          });
+        }
+
+        // 최근 10개만 선택
+        setRecentResponses(allResponses.slice(0, 10));
+      } catch (error) {
+        console.error('❌ [Dashboard] 설문 응답 로드 오류:', error);
+        setRecentResponses([]);
+      }
+
+      // 설문 목록도 로드 (기존 설문 관리를 위해)
+      const surveysData = await surveyService.getSurveysByTeacher(user.uid);
+      console.log('🔍 [Dashboard] 교사 설문 목록:', surveysData.length, '개');
+
+      // 설문 목록을 상태에 저장 (이미 위에서 로드함)
+      setExistingSurveys(surveysData);
+
+      // 통계 계산
+      const today = new Date();
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      const todayResponsesCount = allResponses.filter(response =>
+        response.submittedAt.toDateString() === today.toDateString()
+      ).length;
+
+      const weeklyResponsesCount = allResponses.filter(response =>
+        response.submittedAt >= weekAgo
+      ).length;
+
+      const activeStudentsCount = studentsData.filter(student =>
+        student.lastResponseDate &&
+        new Date(student.lastResponseDate).toDateString() === today.toDateString()
+      ).length;
+
+      setStats({
+        totalStudents: studentsData.length,
+        activeStudents: activeStudentsCount,
+        todayResponses: todayResponsesCount,
+        weeklyParticipation: studentsData.length > 0
+          ? Math.round((weeklyResponsesCount / studentsData.length) * 100)
+          : 0
+      });
+
+      console.log('✅ [Dashboard] 모든 데이터 로드 완료');
     } catch (error) {
-      console.error('대시보드 데이터 로드 오류:', error);
+      console.error('❌ [Dashboard] 데이터 로드 오류:', error);
     } finally {
       setLoading(false);
     }
@@ -336,32 +359,6 @@ export default function TeacherDashboardPage() {
             <div className="text-center">
               <h2 className="text-2xl font-bold mb-2">접근 권한이 없습니다</h2>
               <p className="text-muted-foreground">교사만 접근할 수 있는 페이지입니다.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // 온보딩이 완료되지 않은 경우
-  if (!userProfile.schoolInfo?.classCode) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                <BookOpen className="w-8 h-8 text-primary" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">학급 설정이 필요합니다</h2>
-              <p className="text-muted-foreground mb-4">
-                대시보드를 사용하기 전에 학급 정보를 설정해주세요.
-              </p>
-              <Button asChild>
-                <Link href="/teacher/onboarding">
-                  학급 설정하기
-                </Link>
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -549,8 +546,36 @@ export default function TeacherDashboardPage() {
 
         {/* 대시보드 내용 */}
         <main className="p-4 sm:p-6 lg:p-8">
+          {/* 활성 학급이 없을 때 안내 */}
+          {!classInfo && (
+            <div className="max-w-3xl mx-auto">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                      <GraduationCap className="w-8 h-8 text-primary" />
+                    </div>
+                    <h2 className="text-2xl font-bold mb-2">활성 학급이 없습니다</h2>
+                    <p className="text-muted-foreground mb-6">
+                      대시보드를 사용하려면 학급을 만들고 활성화해주세요.
+                    </p>
+                    <div className="flex justify-center gap-3">
+                      <Button asChild>
+                        <Link href="/teacher/classes/manage">
+                          <GraduationCap className="w-4 h-4 mr-2" />
+                          학급 관리
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           {/* 통계 카드 */}
-          <div id="overview" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
+          {classInfo && (
+            <div id="overview" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
             <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
               <CardContent className="p-6">
                 <div className="flex items-center">
@@ -1114,6 +1139,7 @@ export default function TeacherDashboardPage() {
               )}
             </CardContent>
           </Card>
+          )}
         </main>
       </div>
 
@@ -1544,7 +1570,8 @@ export default function TeacherDashboardPage() {
       )}
 
       {/* 플로팅 네비게이션 버튼 */}
-      <div className="fixed bottom-8 right-8 z-50 flex flex-col gap-3">
+      {classInfo && (
+        <div className="fixed bottom-8 right-8 z-50 flex flex-col gap-3">
         {/* 섹션 바로가기 버튼 */}
         <div className="relative group">
           <Button
@@ -1597,7 +1624,8 @@ export default function TeacherDashboardPage() {
             <ArrowUp className="w-6 h-6 text-white" />
           </Button>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
