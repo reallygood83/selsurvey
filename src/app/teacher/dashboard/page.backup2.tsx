@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity, MessageSquare, Download, Calendar, User, UserPlus, ArrowUp } from 'lucide-react';
+import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity, MessageSquare, Download, Calendar, User } from 'lucide-react';
 import { StudentAnalysisCard } from '@/components/teacher/StudentAnalysisCard';
 import { ClassMoodOverview } from '@/components/teacher/ClassMoodOverview';
 import { StudentEmotionChart } from '@/components/teacher/StudentEmotionChart';
@@ -42,7 +42,6 @@ export default function TeacherDashboardPage() {
     todayResponses: 0,
     weeklyParticipation: 0
   });
-  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     // AuthContext 로딩 중이면 기다림 (새로고침 시 로그아웃 방지)
@@ -60,36 +59,6 @@ export default function TeacherDashboardPage() {
       loadDashboardData();
     }
   }, [user, userProfile, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 스크롤 이벤트 리스너 (플로팅 버튼용)
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 300);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // 페이지 상단으로 스크롤
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // 특정 섹션으로 스크롤
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      const offset = 80; // 헤더 높이 고려
-      const elementPosition = element.getBoundingClientRect().top + window.scrollY;
-      const offsetPosition = elementPosition - offset;
-
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-      });
-    }
-  };
 
   // 학생 이름 찾기 함수 (ClassMoodOverview와 동일한 로직)
   const getStudentName = (studentId: string) => {
@@ -426,16 +395,6 @@ export default function TeacherDashboardPage() {
               );
             })}
           </nav>
-
-          {/* 학생 초대 링크 섹션 */}
-          <div className="px-4 py-3 border-t border-b bg-gray-50">
-            <div className="flex items-center mb-2">
-              <UserPlus className="h-4 w-4 text-primary mr-2" />
-              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">학생 초대</span>
-            </div>
-            {classInfo && <StudentInviteLink classCode={classInfo.classCode} />}
-          </div>
-
           <div className="p-4 border-t">
             <Button variant="outline" className="w-full" onClick={logout}>
               <LogOut className="w-4 h-4 mr-2" />
@@ -470,16 +429,6 @@ export default function TeacherDashboardPage() {
               );
             })}
           </nav>
-
-          {/* 학생 초대 링크 섹션 */}
-          <div className="px-4 py-3 border-t border-b bg-gray-50">
-            <div className="flex items-center mb-2">
-              <UserPlus className="h-4 w-4 text-primary mr-2" />
-              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">학생 초대</span>
-            </div>
-            {classInfo && <StudentInviteLink classCode={classInfo.classCode} />}
-          </div>
-
           <div className="p-4 border-t">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
@@ -550,7 +499,7 @@ export default function TeacherDashboardPage() {
         {/* 대시보드 내용 */}
         <main className="p-4 sm:p-6 lg:p-8">
           {/* 통계 카드 */}
-          <div id="overview" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
             <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
               <CardContent className="p-6">
                 <div className="flex items-center">
@@ -651,7 +600,7 @@ export default function TeacherDashboardPage() {
           )}
 
           {/* 반 정보 및 빠른 작업 */}
-          <div id="class-info" className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* 반 정보 */}
             <Card className="border-0 shadow-md">
               <CardHeader className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-lg">
@@ -762,6 +711,18 @@ export default function TeacherDashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* 학생 초대 링크 */}
+          {classInfo && userProfile && (
+            <div className="mb-8">
+              <StudentInviteLink
+                classCode={classInfo.classCode}
+                schoolName={classInfo.schoolName}
+                className={classInfo.className}
+                grade={classInfo.grade}
+              />
+            </div>
+          )}
 
           {/* 학생 SEL 분석 결과 */}
           <div id="student-analysis" className="mb-8">
@@ -1542,62 +1503,6 @@ export default function TeacherDashboardPage() {
           </div>
         </div>
       )}
-
-      {/* 플로팅 네비게이션 버튼 */}
-      <div className="fixed bottom-8 right-8 z-50 flex flex-col gap-3">
-        {/* 섹션 바로가기 버튼 */}
-        <div className="relative group">
-          <Button
-            size="lg"
-            className="w-14 h-14 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200"
-            onClick={() => {
-              const quickNav = document.getElementById('quickNav');
-              if (quickNav) quickNav.classList.toggle('hidden');
-            }}
-          >
-            <Menu className="w-6 h-6 text-white" />
-          </Button>
-
-          {/* 퀵 네비게이션 메뉴 */}
-          <div
-            id="quickNav"
-            className="hidden absolute bottom-16 right-0 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[200px]"
-          >
-            <button
-              onClick={() => scrollToSection('overview')}
-              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-            >
-              <BarChart3 className="w-4 h-4 text-blue-500" />
-              <span>통계 개요</span>
-            </button>
-            <button
-              onClick={() => scrollToSection('class-info')}
-              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-            >
-              <BookOpen className="w-4 h-4 text-green-500" />
-              <span>반 정보</span>
-            </button>
-            <button
-              onClick={() => scrollToSection('student-analysis')}
-              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-            >
-              <Users className="w-4 h-4 text-purple-500" />
-              <span>학생 분석</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 맨 위로 버튼 */}
-        {showScrollTop && (
-          <Button
-            size="lg"
-            className="w-14 h-14 rounded-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 shadow-lg hover:shadow-xl transition-all duration-200"
-            onClick={scrollToTop}
-          >
-            <ArrowUp className="w-6 h-6 text-white" />
-          </Button>
-        )}
-      </div>
     </div>
   );
 }
