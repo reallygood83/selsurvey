@@ -209,9 +209,29 @@ export const studentService = {
       
       if (studentSnap.exists()) {
         const data = studentSnap.data();
+        
+        // 학생의 모든 설문 응답 수 실시간 조회
+        const responsesQuery = query(
+          collection(db, COLLECTIONS.SURVEY_RESPONSES),
+          where('studentId', '==', studentSnap.id)
+        );
+        const responsesSnapshot = await getDocs(responsesQuery);
+        const totalResponses = responsesSnapshot.size;
+        
+        // 참여율 계산 (월 4회 설문 기준)
+        const expectedMonthlyResponses = 4;
+        const participationRate = Math.min(100, Math.round((totalResponses / expectedMonthlyResponses) * 100));
+        
+        console.log(`📊 [getStudentProfile] 학생 ${data.name} 통계:`, {
+          totalResponses,
+          participationRate
+        });
+        
         return {
           id: studentSnap.id,
           ...data,
+          totalResponses,
+          participationRate,
           joinedAt: fromTimestamp(data.joinedAt),
           lastResponseDate: data.lastResponseDate ? fromTimestamp(data.lastResponseDate) : undefined
         } as StudentProfile;
@@ -230,15 +250,40 @@ export const studentService = {
     const q = query(studentsRef, where('classCode', '==', classCode));
     const snapshot = await getDocs(q);
     
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        joinedAt: fromTimestamp(data.joinedAt),
-        lastResponseDate: data.lastResponseDate ? fromTimestamp(data.lastResponseDate) : undefined
-      } as StudentProfile;
-    });
+    // 각 학생의 실시간 통계를 계산하여 반환
+    const studentsWithStats = await Promise.all(
+      snapshot.docs.map(async doc => {
+        const data = doc.data();
+        
+        // 학생의 모든 설문 응답 수 실시간 조회
+        const responsesQuery = query(
+          collection(db, COLLECTIONS.SURVEY_RESPONSES),
+          where('studentId', '==', doc.id)
+        );
+        const responsesSnapshot = await getDocs(responsesQuery);
+        const totalResponses = responsesSnapshot.size;
+        
+        // 참여율 계산 (월 4회 설문 기준)
+        const expectedMonthlyResponses = 4;
+        const participationRate = Math.min(100, Math.round((totalResponses / expectedMonthlyResponses) * 100));
+        
+        console.log(`📊 [getStudentsByClass] 학생 ${data.name} 통계:`, {
+          totalResponses,
+          participationRate
+        });
+        
+        return {
+          id: doc.id,
+          ...data,
+          totalResponses,
+          participationRate,
+          joinedAt: fromTimestamp(data.joinedAt),
+          lastResponseDate: data.lastResponseDate ? fromTimestamp(data.lastResponseDate) : undefined
+        } as StudentProfile;
+      })
+    );
+    
+    return studentsWithStats;
   },
 
   // 사용자 ID로 학생 프로필 조회
@@ -252,9 +297,29 @@ export const studentService = {
       if (!snapshot.empty) {
         const doc = snapshot.docs[0];
         const data = doc.data();
+        
+        // 학생의 모든 설문 응답 수 실시간 조회
+        const responsesQuery = query(
+          collection(db, COLLECTIONS.SURVEY_RESPONSES),
+          where('studentId', '==', doc.id)
+        );
+        const responsesSnapshot = await getDocs(responsesQuery);
+        const totalResponses = responsesSnapshot.size;
+        
+        // 참여율 계산 (월 4회 설문 기준)
+        const expectedMonthlyResponses = 4;
+        const participationRate = Math.min(100, Math.round((totalResponses / expectedMonthlyResponses) * 100));
+        
+        console.log(`📊 [getStudentByUserId] 학생 ${data.name} 통계:`, {
+          totalResponses,
+          participationRate
+        });
+        
         return {
           id: doc.id,
           ...data,
+          totalResponses,
+          participationRate,
           joinedAt: fromTimestamp(data.joinedAt),
           lastResponseDate: data.lastResponseDate ? fromTimestamp(data.lastResponseDate) : undefined
         } as StudentProfile;
