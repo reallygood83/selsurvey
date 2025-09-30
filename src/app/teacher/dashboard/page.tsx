@@ -10,7 +10,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity, MessageSquare, Download, Calendar, User } from 'lucide-react';
 import { StudentAnalysisCard } from '@/components/teacher/StudentAnalysisCard';
 import { ClassMoodOverview } from '@/components/teacher/ClassMoodOverview';
@@ -32,8 +31,8 @@ export default function TeacherDashboardPage() {
   const [reportType, setReportType] = useState<'student' | 'class'>('class');
   const [selectedStudentForReport, setSelectedStudentForReport] = useState<string>('');
   const [reportDateRange, setReportDateRange] = useState({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30일 전
+    endDate: new Date().toISOString().split('T')[0] // 오늘
   });
   const [generatingReport, setGeneratingReport] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<any>(null);
@@ -45,6 +44,7 @@ export default function TeacherDashboardPage() {
   });
 
   useEffect(() => {
+    // AuthContext 로딩 중이면 기다림 (새로고침 시 로그아웃 방지)
     if (authLoading) {
       console.log('🔄 [TeacherDashboard] AuthContext 로딩 중...');
       return;
@@ -60,30 +60,33 @@ export default function TeacherDashboardPage() {
     }
   }, [user, userProfile, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ❌ 절대 수정 금지 - 학생 이름 찾기 함수
+  // 학생 이름 찾기 함수 (ClassMoodOverview와 동일한 로직)
   const getStudentName = (studentId: string) => {
     console.log('🔍 [getStudentName] 학생 이름 검색:', {
       찾는_studentId: studentId,
       전체_학생수: students.length,
       학생_ID_목록: students.map(s => ({ id: s.id, name: s.name, userId: s.userId }))
     });
-
+    
+    // id로 먼저 검색
     let student = students.find(s => s.id === studentId);
-
+    
+    // id로 못찾으면 userId로 검색 (Firebase Auth UID)
     if (!student) {
       student = students.find(s => s.userId === studentId);
       console.log('🔄 [getStudentName] userId로 재검색 결과:', student ? `찾음: ${student.name}` : '못찾음');
     }
-
+    
     const result = student?.name || '알 수 없음';
     console.log('✅ [getStudentName] 최종 결과:', result, student ? `(${student.id})` : '(매칭 실패)');
     return result;
   };
 
-  // ❌ 절대 수정 금지 - 질문 내용 가져오기 함수
+  // 질문 내용을 가져오는 함수
   const getQuestionContent = (questionId: string, surveyId?: string): string => {
     console.log('🔍 [getQuestionContent] 질문 검색:', { questionId, surveyId });
-
+    
+    // 모든 설문에서 해당 questionId를 가진 질문을 찾기
     for (const survey of existingSurveys) {
       const question = survey.questions?.find(q => q.id === questionId);
       if (question) {
@@ -91,23 +94,32 @@ export default function TeacherDashboardPage() {
         return question.question;
       }
     }
-
+    
+    // 질문을 찾지 못한 경우 기본 질문들 확인
     const defaultQuestions: { [key: string]: string } = {
       'sa1': '오늘 나의 기분은 어떤가요?',
-      'sa2': '오늘 나의 에너지는 어땠나요?',
-      'sm1': '화가 난 적이 있나요?',
-      'sm2': '슬픈 일이 있었나요?',
-      'sm3': '걱정되거나 불안한 적이 있나요?',
-      'so1': '친구들과 잘 지냈나요?',
-      'so2': '선생님께 도움을 청한 적이 있나요?',
-      'rd1': '오늘 한 일 중 가장 기억에 남는 것은?',
-      'rd2': '내일은 무엇을 하고 싶나요?'
+      'sa2': '지금 내 감정 상태를 가장 잘 표현한다면?',
+      'sm1': '어려운 일이 있을 때 나는 어떻게 대처하나요?',
+      'sm2': '화가 날 때 나는 보통 어떻게 하나요?',
+      'soc1': '친구들의 기분을 잘 알아차리는 편인가요?',
+      'soc2': '다른 사람이 도움이 필요할 때 알아차리나요?',
+      'rel1': '친구들과 잘 어울리나요?',
+      'rel2': '의견이 다를 때 어떻게 해결하나요?',
+      'rdm1': '선택을 할 때 무엇을 가장 중요하게 생각하나요?',
+      'rdm2': '문제가 생겼을 때 어떻게 해결하나요?'
     };
-
-    return defaultQuestions[questionId] || '질문 내용 없음';
+    
+    const defaultQuestion = defaultQuestions[questionId];
+    if (defaultQuestion) {
+      console.log('✅ [getQuestionContent] 기본 질문 사용:', defaultQuestion);
+      return defaultQuestion;
+    }
+    
+    console.log('❌ [getQuestionContent] 질문을 찾을 수 없음');
+    return `질문 (${questionId})`;
   };
 
-  // ❌ 절대 수정 금지 - AI 리포트 생성 함수
+  // AI 리포트 생성 함수
   const generateReport = async () => {
     console.log('🚀 [generateReport] 리포트 생성 시작:', {
       classInfo: classInfo ? `${classInfo.schoolName} ${classInfo.grade}학년 ${classInfo.className}` : '없음',
@@ -134,7 +146,7 @@ export default function TeacherDashboardPage() {
 
     try {
       const endpoint = reportType === 'student' ? '/api/reports/student' : '/api/reports/class';
-      const requestBody = reportType === 'student'
+      const requestBody = reportType === 'student' 
         ? {
             studentId: selectedStudentForReport,
             classCode: classInfo.classCode,
@@ -185,68 +197,84 @@ export default function TeacherDashboardPage() {
     }
   };
 
-  // ❌ 절대 수정 금지 - 대시보드 데이터 로딩 함수
   const loadDashboardData = async () => {
     if (!user || !userProfile?.schoolInfo?.classCode) return;
 
     setLoading(true);
     try {
+      // 반 정보 로드
       const classData = await classService.getClassByCode(userProfile.schoolInfo.classCode);
-
+      
       if (classData) {
         setClassInfo(classData);
 
+        // 학생 목록 로드
         const studentsData = await studentService.getStudentsByClass(classData.classCode);
         setStudents(studentsData);
 
+        // 최근 설문 응답 로드 - classCode 기반으로 직접 조회
         console.log('📊 [Dashboard] 설문 응답 로드 시작:', {
           classCode: classData.classCode
         });
-
-        const responsesData = await surveyService.getResponsesByClass(classData.classCode);
-        console.log('📊 [Dashboard] 설문 응답 로드 완료:', {
-          총응답수: responsesData.length,
-          응답샘플: responsesData.slice(0, 3).map(r => ({
-            id: r.id,
-            studentId: r.studentId,
-            timestamp: r.timestamp
-          }))
-        });
-
-        setRecentResponses(responsesData.sort((a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        ).slice(0, 50));
-
+        
+        let allResponses: SurveyResponse[] = [];
+        
+        try {
+          // classCode 기반으로 모든 설문 응답 조회
+          allResponses = await surveyService.getResponsesByClass(classData.classCode);
+          console.log(`✅ [Dashboard] 반별 설문 응답 조회 완료: ${allResponses.length}개`);
+          
+          // 추가 로그: 응답 데이터 구조 확인
+          if (allResponses.length > 0) {
+            console.log('📋 [Dashboard] 설문 응답 샘플:', {
+              firstResponse: {
+                id: allResponses[0].id,
+                surveyType: allResponses[0].surveyType,
+                studentId: allResponses[0].studentId,
+                classCode: allResponses[0].classCode,
+                submittedAt: allResponses[0].submittedAt
+              }
+            });
+          }
+          
+          // 최근 10개만 선택
+          setRecentResponses(allResponses.slice(0, 10));
+        } catch (error) {
+          console.error('❌ [Dashboard] 설문 응답 로드 오류:', error);
+          setRecentResponses([]);
+        }
+        
+        // 설문 목록도 로드 (기존 설문 관리를 위해)
         const surveysData = await surveyService.getSurveysByTeacher(user.uid);
+        console.log('🔍 [Dashboard] 교사 설문 목록:', surveysData.length, '개');
+
+        // 설문 목록을 상태에 저장 (이미 위에서 로드함)
         setExistingSurveys(surveysData);
 
-        const today = new Date().toISOString().split('T')[0];
-        const todayStart = new Date(today).getTime();
-        const weekAgo = todayStart - (7 * 24 * 60 * 60 * 1000);
-
-        const todayResponsesCount = responsesData.filter(r =>
-          new Date(r.timestamp).getTime() >= todayStart
+        // 통계 계산
+        const today = new Date();
+        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        
+        const todayResponsesCount = allResponses.filter(response => 
+          response.submittedAt.toDateString() === today.toDateString()
         ).length;
 
-        const weekResponses = responsesData.filter(r =>
-          new Date(r.timestamp).getTime() >= weekAgo
-        );
-        const uniqueStudentsThisWeek = new Set(weekResponses.map(r => r.studentId)).size;
-        const weeklyParticipation = studentsData.length > 0
-          ? Math.round((uniqueStudentsThisWeek / studentsData.length) * 100)
-          : 0;
+        const weeklyResponsesCount = allResponses.filter(response => 
+          response.submittedAt >= weekAgo
+        ).length;
 
-        const activeStudentsCount = new Set(
-          responsesData
-            .filter(r => new Date(r.timestamp).getTime() >= weekAgo)
-            .map(r => r.studentId)
-        ).size;
+        const activeStudentsCount = studentsData.filter(student => 
+          student.lastResponseDate && 
+          new Date(student.lastResponseDate).toDateString() === today.toDateString()
+        ).length;
 
         setStats({
           totalStudents: studentsData.length,
           activeStudents: activeStudentsCount,
           todayResponses: todayResponsesCount,
-          weeklyParticipation
+          weeklyParticipation: studentsData.length > 0 
+            ? Math.round((weeklyResponsesCount / studentsData.length) * 100) 
+            : 0
         });
       }
     } catch (error) {
@@ -256,45 +284,73 @@ export default function TeacherDashboardPage() {
     }
   };
 
-  if (authLoading || loading) {
+  // authLoading이 끝날 때까지 로딩 화면 표시 (너무 빠른 권한 체크 방지)
+  if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-gray-600">대시보드 로딩 중...</p>
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">인증 확인 중...</p>
         </div>
       </div>
     );
   }
 
-  if (!user || !userProfile || userProfile.role !== 'teacher') {
-    router.push('/auth/login');
-    return null;
-  }
-
-  if (!userProfile.schoolInfo?.classCode) {
+  if (!user || userProfile?.role !== 'teacher') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>반 정보가 없습니다</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 mb-4">
-              대시보드를 사용하려면 먼저 반을 생성해주세요.
-            </p>
-            <Button asChild className="w-full">
-              <Link href="/teacher/class/create">
-                <Plus className="w-4 h-4 mr-2" />
-                반 만들기
-              </Link>
-            </Button>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold mb-2">접근 권한이 없습니다</h2>
+              <p className="text-muted-foreground">교사만 접근할 수 있는 페이지입니다.</p>
+            </div>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  // 온보딩이 완료되지 않은 경우
+  if (!userProfile.schoolInfo?.classCode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <BookOpen className="w-8 h-8 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">학급 설정이 필요합니다</h2>
+              <p className="text-muted-foreground mb-4">
+                대시보드를 사용하기 전에 학급 정보를 설정해주세요.
+              </p>
+              <Button asChild>
+                <Link href="/teacher/onboarding">
+                  학급 설정하기
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">
+            {authLoading ? '로그인 상태 확인 중...' : '대시보드 데이터 로딩 중...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 네비게이션 항목
   const navigation = [
     { name: '대시보드', href: '/teacher/dashboard', icon: Home, current: true },
     { name: '새 설문 만들기', href: '/teacher/surveys/create', icon: Plus },
@@ -306,44 +362,6 @@ export default function TeacherDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 사이드바 (데스크톱) */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-1 min-h-0 bg-white border-r">
-          <div className="flex items-center h-16 px-6 bg-primary">
-            <h1 className="text-lg font-semibold text-white">MindLog</h1>
-          </div>
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    item.current
-                      ? 'bg-primary text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Icon className={`mr-3 h-5 w-5 flex-shrink-0 ${item.current ? 'text-white' : 'text-gray-400'}`} />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="p-4 border-t">
-            <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-              <p className="text-xs text-gray-500 mb-1">학급 코드</p>
-              <p className="font-mono font-bold text-primary">{classInfo?.classCode}</p>
-            </div>
-            <Button variant="outline" className="w-full" onClick={logout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              로그아웃
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* 사이드바 (모바일) */}
       <div className={`fixed inset-0 z-40 lg:hidden ${sidebarOpen ? '' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
@@ -386,6 +404,55 @@ export default function TeacherDashboardPage() {
         </div>
       </div>
 
+      {/* 사이드바 (데스크톱) */}
+      <div className="hidden lg:flex lg:fixed lg:inset-y-0 lg:w-64 lg:flex-col">
+        <div className="flex flex-col flex-grow bg-white border-r">
+          <div className="flex items-center h-16 px-6 bg-primary">
+            <h1 className="text-lg font-semibold text-white">MindLog</h1>
+          </div>
+          <nav className="flex-1 px-4 py-6 space-y-1">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    item.current
+                      ? 'bg-primary text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon className={`mr-3 h-5 w-5 ${item.current ? 'text-white' : 'text-gray-400'}`} />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="p-4 border-t">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-medium">
+                  {(userProfile?.displayName || userProfile?.email || 'T').charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {userProfile?.displayName || userProfile?.email?.split('@')[0] || '교사'}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {userProfile?.email}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" className="w-full" onClick={logout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              로그아웃
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* 메인 콘텐츠 */}
       <div className="lg:pl-64">
         {/* 모바일 헤더 */}
@@ -398,7 +465,7 @@ export default function TeacherDashboardPage() {
               <Menu className="h-6 w-6" />
             </button>
             <h1 className="text-lg font-semibold">교사 대시보드</h1>
-            <div className="w-6" />
+            <div className="w-6" /> {/* Spacer */}
           </div>
         </div>
 
@@ -429,380 +496,793 @@ export default function TeacherDashboardPage() {
           </div>
         </div>
 
-        {/* 대시보드 내용 - 탭 구조로 재구성 */}
+        {/* 대시보드 내용 */}
         <main className="p-4 sm:p-6 lg:p-8">
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-6">
-              <TabsTrigger value="overview" className="flex items-center gap-2">
-                <Home className="w-4 h-4" />
-                <span className="hidden sm:inline">개요</span>
-              </TabsTrigger>
-              <TabsTrigger value="students" className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                <span className="hidden sm:inline">학생</span>
-              </TabsTrigger>
-              <TabsTrigger value="activity" className="flex items-center gap-2">
-                <Activity className="w-4 h-4" />
-                <span className="hidden sm:inline">활동</span>
-              </TabsTrigger>
-              <TabsTrigger value="reports" className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                <span className="hidden sm:inline">리포트</span>
-              </TabsTrigger>
-              <TabsTrigger value="manage" className="flex items-center gap-2">
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">관리</span>
-              </TabsTrigger>
-            </TabsList>
-
-            {/* 개요 탭 */}
-            <TabsContent value="overview" className="space-y-6">
-              {/* 통계 카드 */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
-                          <Users className="w-6 h-6 text-white" />
-                        </div>
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <p className="text-sm font-medium text-blue-600 mb-1">
-                          전체 학생 수
-                        </p>
-                        <p className="text-2xl font-bold text-blue-900">
-                          {stats.totalStudents}
-                        </p>
-                        <p className="text-xs text-blue-600">명</p>
-                      </div>
+          {/* 통계 카드 */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
+            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
+                      <Users className="w-6 h-6 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <p className="text-sm font-medium text-blue-600 mb-1">
+                      전체 학생 수
+                    </p>
+                    <p className="text-2xl font-bold text-blue-900">
+                      {stats.totalStudents}
+                    </p>
+                    <p className="text-xs text-blue-600">명</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-                <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
-                          <CheckCircle className="w-6 h-6 text-white" />
-                        </div>
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <p className="text-sm font-medium text-green-600 mb-1">
-                          활동 학생
-                        </p>
-                        <p className="text-2xl font-bold text-green-900">
-                          {stats.activeStudents}
-                        </p>
-                        <p className="text-xs text-green-600">최근 7일</p>
-                      </div>
+            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
+                      <CheckCircle className="w-6 h-6 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <p className="text-sm font-medium text-green-600 mb-1">
+                      오늘 참여 학생
+                    </p>
+                    <p className="text-2xl font-bold text-green-900">
+                      {stats.activeStudents}
+                    </p>
+                    <p className="text-xs text-green-600">명</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center">
-                          <MessageSquare className="w-6 h-6 text-white" />
-                        </div>
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <p className="text-sm font-medium text-purple-600 mb-1">
-                          오늘 응답
-                        </p>
-                        <p className="text-2xl font-bold text-purple-900">
-                          {stats.todayResponses}
-                        </p>
-                        <p className="text-xs text-purple-600">건</p>
-                      </div>
+            <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center">
+                      <Activity className="w-6 h-6 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <p className="text-sm font-medium text-yellow-600 mb-1">
+                      오늘 설문 응답
+                    </p>
+                    <p className="text-2xl font-bold text-yellow-900">
+                      {stats.todayResponses}
+                    </p>
+                    <p className="text-xs text-yellow-600">개</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-                <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center">
-                          <TrendingUp className="w-6 h-6 text-white" />
-                        </div>
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <p className="text-sm font-medium text-orange-600 mb-1">
-                          주간 참여율
-                        </p>
-                        <p className="text-2xl font-bold text-orange-900">
-                          {stats.weeklyParticipation}%
-                        </p>
-                        <p className="text-xs text-orange-600">최근 7일</p>
-                      </div>
+            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center">
+                      <TrendingUp className="w-6 h-6 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <p className="text-sm font-medium text-purple-600 mb-1">
+                      주간 참여율
+                    </p>
+                    <p className="text-2xl font-bold text-purple-900">
+                      {stats.weeklyParticipation}
+                    </p>
+                    <p className="text-xs text-purple-600">%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-              {/* 학급 전체 감정 개요 */}
-              {recentResponses.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-lg">
-                      <Activity className="w-5 h-5 mr-2 text-primary" />
-                      학급 전체 감정 현황
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ClassMoodOverview
-                      responses={recentResponses}
-                      students={students}
-                    />
-                  </CardContent>
-                </Card>
-              )}
+          {/* 오늘의 학급 감정 현황 */}
+          {classInfo && (
+            <div className="mb-8">
+              <ClassMoodOverview classCode={classInfo.classCode} />
+            </div>
+          )}
 
-              {/* 학생별 감정 차트 */}
-              {students.length > 0 && recentResponses.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-lg">
-                      <BarChart3 className="w-5 h-5 mr-2 text-primary" />
-                      학생별 감정 추이
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <StudentEmotionChart
-                      students={students}
-                      responses={recentResponses}
-                    />
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
+          {/* 학생별 감정 변화 분석 */}
+          {classInfo && (
+            <div className="mb-8">
+              <StudentEmotionChart classCode={classInfo.classCode} />
+            </div>
+          )}
 
-            {/* 학생 관리 탭 */}
-            <TabsContent value="students" className="space-y-6">
-              {/* 학생 초대 링크 */}
-              {classInfo && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-lg">
-                      <Users className="w-5 h-5 mr-2 text-primary" />
-                      학생 초대
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <StudentInviteLink classCode={classInfo.classCode} />
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* 학생 목록 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center text-lg">
-                      <Users className="w-5 h-5 mr-2 text-primary" />
-                      학생 목록 ({students.length}명)
+          {/* 반 정보 및 빠른 작업 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* 반 정보 */}
+            <Card className="border-0 shadow-md">
+              <CardHeader className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-lg">
+                <CardTitle className="text-lg font-semibold flex items-center">
+                  <BookOpen className="w-5 h-5 mr-2" />
+                  반 정보
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                {classInfo && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-sm font-medium text-gray-600">반 코드</span>
+                      <Badge variant="outline" className="font-mono font-bold text-blue-600 border-blue-200">
+                        {classInfo.classCode}
+                      </Badge>
                     </div>
-                    <Button asChild variant="outline" size="sm">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-sm font-medium text-gray-600">학교</span>
+                      <span className="text-sm font-semibold">{classInfo.schoolName}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-sm font-medium text-gray-600">학년/반</span>
+                      <span className="text-sm font-semibold">
+                        {classInfo.grade}학년 {classInfo.className}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-sm font-medium text-gray-600">생성일</span>
+                      <span className="text-sm font-semibold">
+                        {classInfo.createdAt.toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div className="mt-6 pt-4 border-t">
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href="/teacher/settings">
+                      <Settings className="w-4 h-4 mr-2" />
+                      반 설정 수정
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 빠른 작업 */}
+            <Card className="border-0 shadow-md">
+              <CardHeader className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-lg">
+                <CardTitle className="text-lg font-semibold flex items-center">
+                  <TrendingUp className="w-5 h-5 mr-2" />
+                  빠른 작업
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start h-auto p-4 hover:bg-blue-50 transition-colors group"
+                    asChild
+                  >
+                    <Link href="/teacher/surveys/create">
+                      <div className="w-10 h-10 bg-blue-100 group-hover:bg-blue-200 rounded-lg flex items-center justify-center mr-3">
+                        <ClipboardList className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="text-left flex-1">
+                        <div className="text-sm font-semibold">일일 감정 체크 설문</div>
+                        <div className="text-xs text-gray-500">학생들의 오늘 감정 상태 확인</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </Link>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start h-auto p-4 hover:bg-green-50 transition-colors group" 
+                    asChild
+                  >
+                    <Link href="/teacher/reports">
+                      <div className="w-10 h-10 bg-green-100 group-hover:bg-green-200 rounded-lg flex items-center justify-center mr-3">
+                        <BarChart3 className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div className="text-left flex-1">
+                        <div className="text-sm font-semibold">SEL 분석 리포트</div>
+                        <div className="text-xs text-gray-500">AI 기반 학급 종합 분석</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </Link>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start h-auto p-4 hover:bg-purple-50 transition-colors group" 
+                    asChild
+                  >
+                    <Link href="/teacher/students/manage">
+                      <div className="w-10 h-10 bg-purple-100 group-hover:bg-purple-200 rounded-lg flex items-center justify-center mr-3">
+                        <Users className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div className="text-left flex-1">
+                        <div className="text-sm font-semibold">학생 관리</div>
+                        <div className="text-xs text-gray-500">학생 추가/삭제 및 설문 관리</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 학생 초대 링크 */}
+          {classInfo && userProfile && (
+            <div className="mb-8">
+              <StudentInviteLink
+                classCode={classInfo.classCode}
+                schoolName={classInfo.schoolName}
+                className={classInfo.className}
+                grade={classInfo.grade}
+              />
+            </div>
+          )}
+
+          {/* 학생 SEL 분석 결과 */}
+          <div id="student-analysis" className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">학생 SEL 분석 결과</h2>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/teacher/reports">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  전체 리포트
+                </Link>
+              </Button>
+            </div>
+          
+            {students.length === 0 ? (
+              <Card className="border-2 border-dashed border-gray-200">
+                <CardContent className="py-12">
+                  <div className="text-center">
+                    <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <Users className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">아직 참여한 학생이 없습니다</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      학생들에게 반 코드를 알려주거나 직접 추가해보세요
+                    </p>
+                    <div className="flex items-center justify-center space-x-2 mb-4">
+                      <span className="text-sm text-gray-500">반 코드:</span>
+                      <Badge variant="outline" className="font-mono text-base px-3 py-1">
+                        {classInfo?.classCode}
+                      </Badge>
+                    </div>
+                    <Button asChild>
                       <Link href="/teacher/students/manage">
-                        관리
+                        <Plus className="w-4 h-4 mr-2" />
+                        학생 직접 추가하기
                       </Link>
                     </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {students.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Users className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-gray-900">아직 학생이 없습니다</h3>
-                      <p className="mt-1 text-sm text-gray-500">
-                        학생들에게 초대 링크를 공유해주세요.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {students.map((student) => (
-                        <Card key={student.id} className="hover:shadow-md transition-shadow">
-                          <CardContent className="p-4">
-                            <div className="flex items-center space-x-3">
-                              <div className="flex-shrink-0">
-                                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
-                                  <User className="w-5 h-5 text-white" />
-                                </div>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
-                                  {student.name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {recentResponses.filter(r => r.studentId === student.id || r.studentId === student.userId).length}개 응답
-                                </p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {students.map((student) => (
+                  <StudentAnalysisCard
+                    key={student.id}
+                    student={student}
+                    onViewDetails={(studentId) => {
+                      // 학생 상세 분석 페이지로 이동
+                      if (typeof window !== 'undefined') {
+                        window.location.href = `/teacher/students/${studentId}`;
+                      } else {
+                        // SSR 환경에서는 Next.js 라우터 사용
+                        router.push(`/teacher/students/${studentId}`);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
 
-            {/* 활동 내역 탭 */}
-            <TabsContent value="activity" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center text-lg">
-                    <Activity className="w-5 h-5 mr-2 text-primary" />
-                    최근 설문 응답 ({recentResponses.length}건)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {recentResponses.length === 0 ? (
-                    <div className="text-center py-12">
-                      <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-gray-900">아직 응답이 없습니다</h3>
-                      <p className="mt-1 text-sm text-gray-500">
-                        학생들이 설문에 응답하면 여기에 표시됩니다.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {recentResponses.slice(0, 10).map((response) => (
-                        <div
-                          key={response.id}
-                          className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                          onClick={() => {
-                            setSelectedResponse(response);
-                            setResponseModalOpen(true);
-                          }}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2">
-                                <span className="font-medium text-gray-900">
-                                  {getStudentName(response.studentId)}
+          {/* 학생 목록 테이블 (요약) */}
+          <Card className="mb-8 border-0 shadow-md">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold flex items-center">
+                  <Users className="w-5 h-5 mr-2" />
+                  학생 목록 요약 ({students.length}명)
+                </CardTitle>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/teacher/students/manage">
+                    <Settings className="w-4 h-4 mr-2" />
+                    관리
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {students.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <Users className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">아직 참여한 학생이 없습니다</h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    학생들에게 반 코드를 알려주거나 직접 추가해보세요
+                  </p>
+                  <Badge variant="outline" className="font-mono text-base px-3 py-1 mb-4">
+                    {classInfo?.classCode}
+                  </Badge>
+                  <div>
+                    <Button asChild>
+                      <Link href="/teacher/students/manage">
+                        <Plus className="w-4 h-4 mr-2" />
+                        학생 직접 추가하기
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          이름
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          참여일
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          최근 응답
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          참여율
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          상태
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          분석
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {students.map((student) => (
+                        <tr key={student.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                <span className="text-sm font-medium text-blue-600">
+                                  {student.name.charAt(0)}
                                 </span>
-                                <Badge variant="outline" className="text-xs">
-                                  {response.surveyType === 'daily' ? '일일설문' :
-                                   response.surveyType === 'weekly' ? '주간설문' : '맞춤설문'}
-                                </Badge>
                               </div>
-                              <p className="text-sm text-gray-500 mt-1">
-                                {new Date(response.timestamp).toLocaleString('ko-KR', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
+                              <div className="text-sm font-medium text-gray-900">
+                                {student.name}
+                              </div>
                             </div>
-                            <Eye className="w-5 h-5 text-gray-400" />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {student.joinedAt.toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {student.lastResponseDate 
+                              ? student.lastResponseDate.toLocaleDateString()
+                              : '응답 없음'
+                            }
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <span className="text-sm font-medium text-gray-900">
+                                {student.participationRate}%
+                              </span>
+                              <div className="ml-2 w-16 bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-blue-500 h-2 rounded-full" 
+                                  style={{ width: `${student.participationRate}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Badge 
+                              variant={student.isActive ? "default" : "secondary"}
+                              className={student.isActive ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-gray-100 text-gray-800"}
+                            >
+                              {student.isActive ? '활성' : '비활성'}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                              onClick={() => {
+                                if (typeof window !== 'undefined') {
+                                  window.location.href = `/teacher/students/${student.id}`;
+                                } else {
+                                  // SSR 환경에서는 Next.js 라우터 사용
+                                  router.push(`/teacher/students/${student.id}`);
+                                }
+                              }}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              상세보기
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 기존 설문 */}
+          <Card className="mb-8 border-0 shadow-md">
+            <CardHeader className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold flex items-center">
+                  <ClipboardList className="w-5 h-5 mr-2" />
+                  기존 설문
+                </CardTitle>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/teacher/surveys/manage">
+                    <Settings className="w-4 h-4 mr-2" />
+                    관리
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {existingSurveys.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+                    <ClipboardList className="h-8 w-8 text-yellow-600" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">아직 생성된 설문이 없습니다</h3>
+                  <p className="text-sm text-gray-500 mb-4">새로운 설문을 만들어 학생들의 감정 상태를 파악해보세요</p>
+                  <Button asChild>
+                    <Link href="/teacher/surveys/create">
+                      <Plus className="w-4 h-4 mr-2" />
+                      첫 번째 설문 만들기
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {existingSurveys.map((survey) => (
+                    <div key={survey.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <ClipboardList className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {survey.title}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            질문 수: {survey.questions?.length || 0} | 
+                            <Badge 
+                              variant={survey.isActive ? "default" : "secondary"}
+                              className={`ml-1 ${survey.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                            >
+                              {survey.isActive ? '활성' : '비활성'}
+                            </Badge>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                          onClick={() => {
+                            if (typeof window !== 'undefined') {
+                              const surveyUrl = `${window.location.origin}/shared?id=${survey.id}`;
+                              navigator.clipboard.writeText(surveyUrl);
+                              alert('설문 링크가 클립보드에 복사되었습니다!');
+                            } else {
+                              // SSR 환경에서는 기본 URL 사용
+                              const surveyUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://your-app-url.com'}/shared?id=${survey.id}`;
+                              alert(`설문 링크: ${surveyUrl}`);
+                            }
+                          }}
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          링크 복사
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 최근 활동 */}
+          <Card className="border-0 shadow-md">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold flex items-center">
+                  <Activity className="w-5 h-5 mr-2" />
+                  최근 설문 응답
+                </CardTitle>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setReportModalOpen(true)}
+                    className="flex items-center"
+                  >
+                    <Download className="w-4 h-4 mr-1" />
+                    AI 리포트
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/teacher/surveys/manage">
+                      전체 보기
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {recentResponses.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                    <Activity className="h-8 w-8 text-purple-600" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">아직 설문 응답이 없습니다</h3>
+                  <p className="text-sm text-gray-500">학생들이 설문에 참여하면 여기에 표시됩니다</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentResponses.map((response) => (
+                    <div 
+                      key={response.id} 
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer border border-transparent hover:border-purple-200"
+                      onClick={() => {
+                        setSelectedResponse(response);
+                        setResponseModalOpen(true);
+                      }}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <Activity className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {getStudentName(response.studentId)} 
+                            <span className="text-gray-400 ml-2">
+                              ({response.surveyType === 'daily' ? '일일 체크' : 
+                                response.surveyType === 'weekly' ? '주간 설문' : '월간 설문'})
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {response.submittedAt.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="text-sm font-medium text-gray-600">
+                          응답 {response.responses.length}개
+                        </div>
+                        <MessageSquare className="w-4 h-4 text-gray-400" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+
+      {/* 설문 응답 상세보기 모달 */}
+      {responseModalOpen && selectedResponse && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {getStudentName(selectedResponse.studentId)}의 설문 응답
+                </h2>
+                <button
+                  onClick={() => setResponseModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">설문 유형:</span>{' '}
+                  {selectedResponse.surveyType === 'daily' ? '일일 체크' : 
+                   selectedResponse.surveyType === 'weekly' ? '주간 설문' : '월간 설문'}
+                </div>
+                <div className="text-sm text-gray-600 mt-1">
+                  <span className="font-medium">제출 시간:</span>{' '}
+                  {selectedResponse.submittedAt.toLocaleString()}
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="font-semibold text-gray-900">설문 응답 내용</h3>
+                {selectedResponse.responses.map((response, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                          {response.domain} 영역
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          #{index + 1}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-gray-900">
+                      <div className="mb-2">
+                        <span className="text-sm font-medium text-gray-700">질문:</span>
+                        <div className="text-sm text-gray-900 mt-1 font-medium">
+                          {getQuestionContent(response.questionId, selectedResponse.surveyId)}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          ID: {response.questionId}
+                        </div>
+                      </div>
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <span className="text-sm font-medium text-blue-700">응답:</span>
+                        <div className="text-blue-900 mt-1 font-medium">
+                          {Array.isArray(response.answer) 
+                            ? response.answer.join(', ')
+                            : response.answer}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-6 flex justify-end">
+                <Button
+                  onClick={() => setResponseModalOpen(false)}
+                  variant="outline"
+                >
+                  닫기
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI 리포트 생성 모달 */}
+      {reportModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  AI SEL 분석 리포트 생성
+                </h2>
+                <button
+                  onClick={() => {
+                    setReportModalOpen(false);
+                    setGeneratedReport(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {!generatedReport ? (
+                <div className="space-y-6">
+                  {/* 리포트 유형 선택 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">리포트 유형</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div 
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                          reportType === 'class' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-200'
+                        }`}
+                        onClick={() => setReportType('class')}
+                      >
+                        <div className="flex items-center mb-2">
+                          <Users className="w-5 h-5 mr-2 text-purple-600" />
+                          <span className="font-medium">학급 전체 분석</span>
+                        </div>
+                        <p className="text-sm text-gray-600">학급 전체의 SEL 발달 현황과 경향을 분석합니다</p>
+                      </div>
+                      <div 
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                          reportType === 'student' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-200'
+                        }`}
+                        onClick={() => setReportType('student')}
+                      >
+                        <div className="flex items-center mb-2">
+                          <User className="w-5 h-5 mr-2 text-blue-600" />
+                          <span className="font-medium">개별 학생 분석</span>
+                        </div>
+                        <p className="text-sm text-gray-600">특정 학생의 SEL 발달 과정을 심층 분석합니다</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 학생 선택 (개별 분석 시) */}
+                  {reportType === 'student' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">분석할 학생 선택</label>
+                      <select
+                        value={selectedStudentForReport}
+                        onChange={(e) => setSelectedStudentForReport(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="">학생을 선택하세요</option>
+                        {students.map((student) => (
+                          <option key={student.id} value={student.id}>
+                            {student.name} ({student.grade}학년)
+                          </option>
+                        ))}
+                      </select>
+                      {/* 디버깅 정보 */}
+                      <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                        🔍 디버깅: 로드된 학생 수 {students.length}명 | 최근 응답 수 {recentResponses.length}개
+                        {students.length > 0 && (
+                          <div className="mt-1">
+                            학생 목록: {students.slice(0, 3).map(s => s.name).join(', ')}
+                            {students.length > 3 && ` 외 ${students.length - 3}명`}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            </TabsContent>
 
-            {/* 리포트 탭 */}
-            <TabsContent value="reports" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center text-lg">
-                    <BarChart3 className="w-5 h-5 mr-2 text-primary" />
-                    AI 분석 리포트 생성
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        리포트 유형
-                      </label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <button
-                          onClick={() => setReportType('class')}
-                          className={`p-4 border-2 rounded-lg text-center transition-all ${
-                            reportType === 'class'
-                              ? 'border-primary bg-primary/5'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <Users className="w-6 h-6 mx-auto mb-2" />
-                          <p className="font-medium">학급 전체</p>
-                          <p className="text-xs text-gray-500 mt-1">전체 학생 분석</p>
-                        </button>
-                        <button
-                          onClick={() => setReportType('student')}
-                          className={`p-4 border-2 rounded-lg text-center transition-all ${
-                            reportType === 'student'
-                              ? 'border-primary bg-primary/5'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <User className="w-6 h-6 mx-auto mb-2" />
-                          <p className="font-medium">개별 학생</p>
-                          <p className="text-xs text-gray-500 mt-1">특정 학생 분석</p>
-                        </button>
-                      </div>
-                    </div>
-
-                    {reportType === 'student' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          분석할 학생 선택
-                        </label>
-                        <select
-                          value={selectedStudentForReport}
-                          onChange={(e) => setSelectedStudentForReport(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                        >
-                          <option value="">학생을 선택하세요</option>
-                          {students.map((student) => (
-                            <option key={student.id} value={student.id}>
-                              {student.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
+                  {/* 기간 선택 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">분석 기간</label>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          시작일
-                        </label>
+                        <label className="block text-xs text-gray-500 mb-1">시작일</label>
                         <input
                           type="date"
                           value={reportDateRange.startDate}
-                          onChange={(e) => setReportDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                          onChange={(e) => setReportDateRange(prev => ({
+                            ...prev,
+                            startDate: e.target.value
+                          }))}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          종료일
-                        </label>
+                        <label className="block text-xs text-gray-500 mb-1">종료일</label>
                         <input
                           type="date"
                           value={reportDateRange.endDate}
-                          onChange={(e) => setReportDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                          onChange={(e) => setReportDateRange(prev => ({
+                            ...prev,
+                            endDate: e.target.value
+                          }))}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
                     </div>
+                  </div>
 
+                  {/* 생성 버튼 */}
+                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={() => setReportModalOpen(false)}
+                      disabled={generatingReport}
+                    >
+                      취소
+                    </Button>
                     <Button
                       onClick={generateReport}
-                      disabled={generatingReport || (reportType === 'student' && !selectedStudentForReport)}
-                      className="w-full"
+                      disabled={generatingReport}
+                      className="bg-purple-600 hover:bg-purple-700"
                     >
                       {generatingReport ? (
                         <>
@@ -811,202 +1291,214 @@ export default function TeacherDashboardPage() {
                         </>
                       ) : (
                         <>
-                          <BarChart3 className="w-4 h-4 mr-2" />
+                          <Download className="w-4 h-4 mr-2" />
                           리포트 생성
                         </>
                       )}
                     </Button>
-
-                    {generatedReport && (
-                      <div className="mt-6 p-6 bg-blue-50 rounded-lg border border-blue-200">
-                        <h3 className="text-lg font-semibold text-blue-900 mb-4">
-                          {reportType === 'student' ? '개별 학생 분석 리포트' : '학급 전체 분석 리포트'}
-                        </h3>
-                        <div className="prose prose-sm max-w-none">
-                          <div className="whitespace-pre-wrap text-gray-700">
-                            {generatedReport.analysis || generatedReport.report}
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          className="mt-4"
-                          onClick={() => {
-                            const reportText = generatedReport.analysis || generatedReport.report;
-                            const blob = new Blob([reportText], { type: 'text/plain' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `리포트_${reportType}_${new Date().toISOString().split('T')[0]}.txt`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                          }}
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          리포트 다운로드
-                        </Button>
-                      </div>
-                    )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              ) : (
+                // 생성된 리포트 표시
+                <div className="space-y-6">
+                  {/* 리포트 헤더 */}
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-lg border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">
+                          {reportType === 'student' 
+                            ? `${generatedReport.student?.name} SEL 분석 리포트`
+                            : `${classInfo?.className || '우리 학급'} SEL 종합 분석`
+                          }
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          분석 기간: {reportDateRange.startDate} ~ {reportDateRange.endDate}
+                          {reportType === 'student' && (
+                            <span className="ml-4">응답 수: {generatedReport.responseCount}개</span>
+                          )}
+                          {reportType === 'class' && (
+                            <span className="ml-4">
+                              참여율: {generatedReport.responseMetrics?.responseRate}% 
+                              ({generatedReport.responseMetrics?.totalResponses}개 응답)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="bg-white">
+                        AI 분석 완료
+                      </Badge>
+                    </div>
+                  </div>
 
-              {/* 학생별 AI 분석 */}
-              {students.length > 0 && recentResponses.length > 0 && (
-                <div className="space-y-4">
-                  <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                    <User className="w-5 h-5 mr-2 text-primary" />
-                    학생별 상세 분석
-                  </h2>
-                  <div className="grid gap-6 md:grid-cols-2">
-                    {students.map((student) => {
-                      const studentResponses = recentResponses.filter(
-                        r => r.studentId === student.id || r.studentId === student.userId
-                      );
+                  {/* 학생 개별 리포트 */}
+                  {reportType === 'student' && generatedReport.analysis && (
+                    <div className="space-y-4">
+                      {/* SEL 5영역 점수 */}
+                      <div className="grid grid-cols-5 gap-4">
+                        {Object.entries(generatedReport.analysis).slice(0, 5).map(([domain, data]: [string, any]) => (
+                          <div key={domain} className="text-center p-4 bg-gray-50 rounded-lg">
+                            <div className="text-2xl font-bold text-purple-600 mb-1">
+                              {data.score || 0}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {domain === 'selfAwareness' ? '자기인식' :
+                               domain === 'selfManagement' ? '자기관리' :
+                               domain === 'socialAwareness' ? '사회인식' :
+                               domain === 'relationshipSkills' ? '관계기술' :
+                               domain === 'responsibleDecisionMaking' ? '책임의식' : domain}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
 
-                      if (studentResponses.length === 0) return null;
+                      {/* 종합 인사이트 */}
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-blue-900 mb-2">주요 인사이트</h4>
+                        <ul className="space-y-1 text-sm text-blue-800">
+                          {generatedReport.analysis.overallInsights?.map((insight: string, index: number) => (
+                            <li key={index}>• {insight}</li>
+                          ))}
+                        </ul>
+                      </div>
 
-                      return (
-                        <StudentAnalysisCard
-                          key={student.id}
-                          student={student}
-                          responses={studentResponses}
-                        />
-                      );
-                    })}
+                      {/* 권장사항 */}
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-green-900 mb-2">지도 권장사항</h4>
+                        <ul className="space-y-1 text-sm text-green-800">
+                          {generatedReport.analysis.recommendations?.map((rec: string, index: number) => (
+                            <li key={index}>• {rec}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* 주의사항 */}
+                      {generatedReport.analysis.concerns?.length > 0 && (
+                        <div className="bg-yellow-50 p-4 rounded-lg">
+                          <h4 className="font-semibold text-yellow-900 mb-2">관심 영역</h4>
+                          <ul className="space-y-1 text-sm text-yellow-800">
+                            {generatedReport.analysis.concerns.map((concern: string, index: number) => (
+                              <li key={index}>• {concern}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 학급 전체 리포트 */}
+                  {reportType === 'class' && generatedReport.analysis && (
+                    <div className="space-y-6">
+                      {/* 학급 개요 */}
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="text-center p-4 bg-blue-50 rounded-lg">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {generatedReport.analysis.classOverview?.totalStudents}명
+                          </div>
+                          <div className="text-sm text-gray-600">전체 학생</div>
+                        </div>
+                        <div className="text-center p-4 bg-green-50 rounded-lg">
+                          <div className="text-2xl font-bold text-green-600">
+                            {generatedReport.analysis.classOverview?.activeParticipants}명
+                          </div>
+                          <div className="text-sm text-gray-600">참여 학생</div>
+                        </div>
+                        <div className="text-center p-4 bg-purple-50 rounded-lg">
+                          <div className="text-2xl font-bold text-purple-600">
+                            {generatedReport.analysis.classOverview?.responseRate}%
+                          </div>
+                          <div className="text-sm text-gray-600">참여율</div>
+                        </div>
+                        <div className="text-center p-4 bg-orange-50 rounded-lg">
+                          <div className="text-2xl font-bold text-orange-600">
+                            {generatedReport.analysis.classOverview?.avgResponsesPerStudent}개
+                          </div>
+                          <div className="text-sm text-gray-600">평균 응답</div>
+                        </div>
+                      </div>
+
+                      {/* SEL 영역별 학급 평균 */}
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-3">SEL 영역별 학급 평균</h4>
+                        <div className="space-y-3">
+                          {generatedReport.analysis.domainAnalysis && Object.entries(generatedReport.analysis.domainAnalysis).map(([domain, data]: [string, any]) => (
+                            <div key={domain} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <span className="font-medium">
+                                {domain === 'selfAwareness' ? '자기인식' :
+                                 domain === 'selfManagement' ? '자기관리' :
+                                 domain === 'socialAwareness' ? '사회인식' :
+                                 domain === 'relationshipSkills' ? '관계기술' :
+                                 domain === 'responsibleDecisionMaking' ? '책임의식' : domain}
+                              </span>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-32 bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className="bg-purple-600 h-2 rounded-full"
+                                    style={{ width: `${(data.classAverage || 0)}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-sm font-medium w-8">{data.classAverage || 0}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 학급 강점 */}
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-green-900 mb-2">학급 강점</h4>
+                        <ul className="space-y-1 text-sm text-green-800">
+                          {generatedReport.analysis.classInsights?.strengths?.map((strength: string, index: number) => (
+                            <li key={index}>• {strength}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* 개선 영역 */}
+                      <div className="bg-yellow-50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-yellow-900 mb-2">개선 영역</h4>
+                        <ul className="space-y-1 text-sm text-yellow-800">
+                          {generatedReport.analysis.classInsights?.challenges?.map((challenge: string, index: number) => (
+                            <li key={index}>• {challenge}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* 교실 전략 권장사항 */}
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-blue-900 mb-2">교실 운영 전략</h4>
+                        <ul className="space-y-1 text-sm text-blue-800">
+                          {generatedReport.analysis.recommendations?.classroomStrategies?.map((strategy: string, index: number) => (
+                            <li key={index}>• {strategy}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 액션 버튼 */}
+                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setGeneratedReport(null);
+                        setReportModalOpen(false);
+                      }}
+                    >
+                      닫기
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        // TODO: PDF 다운로드 기능 구현
+                        alert('PDF 다운로드 기능은 곧 추가될 예정입니다.');
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      PDF 다운로드
+                    </Button>
                   </div>
                 </div>
               )}
-            </TabsContent>
-
-            {/* 관리 탭 */}
-            <TabsContent value="manage" className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-base">
-                      <ClipboardList className="w-5 h-5 mr-2 text-primary" />
-                      설문 관리
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">
-                      기존 설문을 수정하거나 삭제할 수 있습니다.
-                    </p>
-                    <Button asChild className="w-full">
-                      <Link href="/teacher/surveys/manage">
-                        설문 관리 페이지로
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-base">
-                      <Users className="w-5 h-5 mr-2 text-primary" />
-                      학생 관리
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">
-                      학생 정보를 수정하거나 관리할 수 있습니다.
-                    </p>
-                    <Button asChild className="w-full">
-                      <Link href="/teacher/students/manage">
-                        학생 관리 페이지로
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-base">
-                      <Settings className="w-5 h-5 mr-2 text-primary" />
-                      설정
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">
-                      프로필 및 학급 설정을 변경할 수 있습니다.
-                    </p>
-                    <Button asChild className="w-full" variant="outline">
-                      <Link href="/teacher/settings">
-                        설정 페이지로
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-base">
-                      <FileText className="w-5 h-5 mr-2 text-primary" />
-                      도움말
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">
-                      MindLog 사용 가이드를 확인하세요.
-                    </p>
-                    <Button asChild className="w-full" variant="outline">
-                      <Link href="/help">
-                        도움말 보기
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </main>
-      </div>
-
-      {/* 응답 상세 모달 */}
-      {responseModalOpen && selectedResponse && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">설문 응답 상세</h2>
-              <button
-                onClick={() => setResponseModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <p className="text-sm text-gray-500">학생</p>
-                <p className="font-medium text-gray-900">
-                  {getStudentName(selectedResponse.studentId)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">응답 시간</p>
-                <p className="font-medium text-gray-900">
-                  {new Date(selectedResponse.timestamp).toLocaleString('ko-KR')}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-2">응답 내용</p>
-                <div className="space-y-3">
-                  {Object.entries(selectedResponse.answers).map(([questionId, answer]) => (
-                    <div key={questionId} className="p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-medium text-gray-700 mb-1">
-                        {getQuestionContent(questionId, selectedResponse.surveyId)}
-                      </p>
-                      <p className="text-sm text-gray-900">
-                        {typeof answer === 'object' && answer !== null
-                          ? JSON.stringify(answer)
-                          : String(answer)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
         </div>
