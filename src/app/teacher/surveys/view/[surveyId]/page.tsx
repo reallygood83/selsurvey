@@ -5,7 +5,10 @@ import { useRouter, useParams } from 'next/navigation';
 import { surveyService, classService } from '@/lib/firestore';
 import { Survey, SurveyResponse, SurveyType, SurveyOption, ClassInfo } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Users, Calendar, Clock, Eye, Edit, Trash2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Users, Calendar, Clock, Eye, Edit, Trash2, AlertCircle, BarChart3, Bot, Brain, Heart } from 'lucide-react';
+import StudentResponseDetailEnhanced from '@/components/teacher/StudentResponseDetailEnhanced';
+import SimpleAIReportGenerator from '@/components/teacher/SimpleAIReportGenerator';
+import SELDataDebugger from '@/components/teacher/SELDataDebugger';
 
 export default function SurveyViewPage() {
   const { user, userProfile } = useAuth();
@@ -18,6 +21,8 @@ export default function SurveyViewPage() {
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'detail' | 'ai-report' | 'sel-analysis'>('list');
 
   useEffect(() => {
     if (surveyId && user) {
@@ -92,6 +97,25 @@ export default function SurveyViewPage() {
         return '기타';
     }
   };
+
+  // 학생별 응답 그룹화
+  const getStudentResponses = () => {
+    const studentMap = new Map<string, SurveyResponse[]>();
+    responses.forEach(response => {
+      const studentId = response.studentId;
+      if (!studentMap.has(studentId)) {
+        studentMap.set(studentId, []);
+      }
+      studentMap.get(studentId)!.push(response);
+    });
+    return Array.from(studentMap.entries()).map(([studentId, responses]) => ({
+      studentId,
+      responses: responses.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
+      latestResponse: responses[0]
+    }));
+  };
+
+  const studentResponseGroups = getStudentResponses();
 
   if (loading) {
     return (
@@ -238,46 +262,215 @@ export default function SurveyViewPage() {
           </div>
         </div>
 
-        {/* 응답 현황 */}
+        {/* 응답 현황 및 상세 분석 */}
         <div className="bg-white p-6 rounded-lg shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">응답 현황</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">응답 현황 및 분석</h2>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'list' 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Users className="w-4 h-4 inline mr-2" />
+                학생 목록
+              </button>
+              <button
+                onClick={() => setViewMode('detail')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'detail' 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                disabled={!selectedStudent}
+              >
+                <BarChart3 className="w-4 h-4 inline mr-2" />
+                상세 분석
+              </button>
+              <button
+                onClick={() => setViewMode('ai-report')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'ai-report' 
+                    ? 'bg-purple-100 text-purple-700' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                disabled={responses.length === 0}
+              >
+                <Bot className="w-4 h-4 inline mr-2" />
+                AI 리포트
+              </button>
+              <button
+                onClick={() => setViewMode('sel-analysis')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'sel-analysis' 
+                    ? 'bg-orange-100 text-orange-700' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                disabled={responses.length === 0}
+              >
+                <Heart className="w-4 h-4 inline mr-2" />
+                SEL 분석
+              </button>
+            </div>
+          </div>
+
           {responses.length === 0 ? (
             <div className="text-center py-8">
               <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <p className="text-gray-500">아직 응답이 없습니다.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-md">
-                <span className="font-medium text-gray-900">총 응답 수</span>
-                <span className="text-lg font-bold text-blue-600">{responses.length}개</span>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {responses.slice(0, 10).map((response: SurveyResponse, index: number) => (
-                  <div key={response.id} className="p-4 border border-gray-200 rounded-md">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-600">응답 {index + 1}</span>
-                      <span className="text-xs text-gray-500">
-                        {formatDate(response.submittedAt)}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-700">
-                      <p>학생 ID: {response.studentId}</p>
-                      <p>응답 수: {response.responses ? response.responses.length : 0}개</p>
-                    </div>
+            <>
+              {/* 학생 목록 뷰 */}
+              {viewMode === 'list' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-md">
+                    <span className="font-medium text-gray-900">참여 학생 수</span>
+                    <span className="text-lg font-bold text-blue-600">{studentResponseGroups.length}명</span>
                   </div>
-                ))}
-              </div>
-              
-              {responses.length > 10 && (
-                <div className="text-center">
-                  <p className="text-sm text-gray-500">
-                    외 {responses.length - 10}개의 응답이 더 있습니다.
-                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {studentResponseGroups.map((studentGroup, index) => (
+                      <div 
+                        key={studentGroup.studentId} 
+                        className={`p-4 border rounded-md cursor-pointer transition-all hover:shadow-md ${
+                          selectedStudent === studentGroup.studentId 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => setSelectedStudent(studentGroup.studentId)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-gray-900">학생 #{index + 1}</span>
+                          <span className="text-xs text-gray-500">
+                            총 {studentGroup.responses.length}회 응답
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-700">
+                          <p>학생 ID: {studentGroup.studentId.substring(0, 8)}...</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            최근: {formatDate(studentGroup.latestResponse.submittedAt)}
+                          </p>
+                        </div>
+                        {selectedStudent === studentGroup.studentId && (
+                          <div className="mt-2 pt-2 border-t border-blue-200">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewMode('detail');
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-800"
+                            >
+                              상세 분석 보기 →
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
+
+              {/* 상세 분석 뷰 */}
+              {viewMode === 'detail' && selectedStudent && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-md">
+                    <div>
+                      <h3 className="font-medium text-gray-900">선택된 학생 상세 분석</h3>
+                      <p className="text-sm text-gray-600">학생 ID: {selectedStudent}</p>
+                    </div>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      ← 목록으로 돌아가기
+                    </button>
+                  </div>
+                  
+                  <StudentResponseDetailEnhanced 
+                    responses={studentResponseGroups.find(g => g.studentId === selectedStudent)?.responses || []}
+                  />
+                </div>
+              )}
+
+              {/* AI 리포트 뷰 */}
+              {viewMode === 'ai-report' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-purple-50 rounded-md">
+                    <div className="flex items-center space-x-2">
+                      <Brain className="w-5 h-5 text-purple-600" />
+                      <h3 className="font-medium text-gray-900">AI 리포트 및 SEL 분석</h3>
+                    </div>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className="text-sm text-purple-600 hover:text-purple-800"
+                    >
+                      ← 목록으로 돌아가기
+                    </button>
+                  </div>
+                  
+                  <SimpleAIReportGenerator 
+                    responses={responses}
+                    classCode={survey.classCode}
+                    surveyTitle={survey.title}
+                  />
+                </div>
+              )}
+
+              {/* SEL 분석 뷰 */}
+              {viewMode === 'sel-analysis' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-orange-50 rounded-md">
+                    <div className="flex items-center space-x-2">
+                      <Heart className="w-5 h-5 text-orange-600" />
+                      <h3 className="font-medium text-gray-900">SEL 데이터 분석 및 검증</h3>
+                    </div>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className="text-sm text-orange-600 hover:text-orange-800"
+                    >
+                      ← 목록으로 돌아가기
+                    </button>
+                  </div>
+                  
+                  {/* SEL 분석은 학생이 선택되었을 때만 표시 */}
+                  {selectedStudent ? (
+                    <SELDataDebugger
+                      student={{
+                        id: selectedStudent,
+                        userId: selectedStudent,
+                        name: `학생 #${studentResponseGroups.findIndex(g => g.studentId === selectedStudent) + 1}`,
+                        grade: responses.find(r => r.studentId === selectedStudent)?.grade || 1,
+                        classCode: survey.classCode,
+                        teacherId: user?.uid || '',
+                        joinedAt: new Date(),
+                        isActive: true,
+                        responseHistory: studentResponseGroups.find(g => g.studentId === selectedStudent)?.responses || [],
+                        analysisHistory: [],
+                        totalResponses: studentResponseGroups.find(g => g.studentId === selectedStudent)?.responses.length || 0,
+                        participationRate: 100
+                      }}
+                      responses={studentResponseGroups.find(g => g.studentId === selectedStudent)?.responses || []}
+                      analyses={[]}
+                    />
+                  ) : (
+                    <div className="text-center py-8">
+                      <Heart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <p className="text-gray-500 mb-2">SEL 분석을 위해 학생을 선택해주세요</p>
+                      <button
+                        onClick={() => setViewMode('list')}
+                        className="text-orange-600 hover:text-orange-800 font-medium"
+                      >
+                        학생 목록으로 이동하기 →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
 
