@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity, MessageSquare, Download, Calendar, User, UserPlus, ArrowUp } from 'lucide-react';
+import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity, MessageSquare, Download, Calendar, User, UserPlus, ArrowUp, HelpCircle } from 'lucide-react';
 import { StudentAnalysisCard } from '@/components/teacher/StudentAnalysisCard';
 import { ClassMoodOverview } from '@/components/teacher/ClassMoodOverview';
 import { StudentEmotionChart } from '@/components/teacher/StudentEmotionChart';
@@ -387,7 +387,9 @@ export default function TeacherDashboardPage() {
     { name: '새 설문 만들기', href: '/teacher/surveys/create', icon: Plus },
     { name: '설문 관리', href: '/teacher/surveys/manage', icon: ClipboardList },
     { name: '학생 관리', href: '/teacher/students/manage', icon: Users },
+    { name: '학생 초대', href: '/teacher/invite', icon: UserPlus },
     { name: '리포트 생성', href: '/teacher/reports', icon: BarChart3 },
+    { name: '사용자 매뉴얼', href: '/teacher/manual', icon: HelpCircle },
     { name: '설정', href: '/teacher/settings', icon: Settings },
   ];
 
@@ -427,15 +429,6 @@ export default function TeacherDashboardPage() {
             })}
           </nav>
 
-          {/* 학생 초대 링크 섹션 */}
-          <div className="px-4 py-3 border-t border-b bg-gray-50">
-            <div className="flex items-center mb-2">
-              <UserPlus className="h-4 w-4 text-primary mr-2" />
-              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">학생 초대</span>
-            </div>
-            {classInfo && <StudentInviteLink classCode={classInfo.classCode} />}
-          </div>
-
           <div className="p-4 border-t">
             <Button variant="outline" className="w-full" onClick={logout}>
               <LogOut className="w-4 h-4 mr-2" />
@@ -470,15 +463,6 @@ export default function TeacherDashboardPage() {
               );
             })}
           </nav>
-
-          {/* 학생 초대 링크 섹션 */}
-          <div className="px-4 py-3 border-t border-b bg-gray-50">
-            <div className="flex items-center mb-2">
-              <UserPlus className="h-4 w-4 text-primary mr-2" />
-              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">학생 초대</span>
-            </div>
-            {classInfo && <StudentInviteLink classCode={classInfo.classCode} />}
-          </div>
 
           <div className="p-4 border-t">
             <div className="flex items-center space-x-3 mb-4">
