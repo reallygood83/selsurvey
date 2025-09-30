@@ -46,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSigningIn, setIsSigningIn] = useState(false); // 로그인 진행 중 플래그
 
   // 사용자 프로필 생성/업데이트
   const createOrUpdateUserProfile = async (firebaseUser: User, role: 'teacher' | 'student'): Promise<UserProfile> => {
@@ -128,26 +129,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setError(null);
       setLoading(true);
-      
+      setIsSigningIn(true); // 로그인 시작 플래그 설정
+
       console.log('🔐 Google 로그인 시도 시작:', { role, timestamp: new Date().toISOString() });
-      
+
       if (!isFirebaseAvailable() || !auth || !googleProvider) {
         const errorMsg = '⚠️ Firebase services not available. Please check your environment variables.';
         console.error(errorMsg);
         throw new Error(errorMsg);
       }
-      
+
       console.log('🔐 Firebase 서비스 사용 가능, Popup 로그인 시도...');
-      
+
       // Popup 방식 로그인 시도
       const result = await signInWithPopup(auth, googleProvider);
-      
+
       console.log('🔐 Google 로그인 성공:', {
         uid: result.user.uid,
         email: result.user.email,
         displayName: result.user.displayName
       });
-      
+
       if (result && result.user) {
         // 로그인 성공 - 사용자 프로필 생성/업데이트
         console.log('🔐 사용자 프로필 생성/업데이트 시작...', {
@@ -161,9 +163,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role: profile.role,
           schoolInfo: profile.schoolInfo
         });
-        
+
         setUser(result.user);
         setUserProfile(profile);
+        setIsSigningIn(false); // 로그인 완료 플래그 해제
       }
       
     } catch (error) {
@@ -190,9 +193,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           errorMessage = 'CORS 오류가 발생했습니다. 관리자에게 문의해주세요.';
         }
       }
-      
+
       setError(errorMessage);
       setLoading(false);
+      setIsSigningIn(false); // 오류 시에도 플래그 해제
       throw error;
     }
   };
@@ -230,40 +234,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       return;
     }
-    
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
+        // 로그인 진행 중이면 리스너 스킵 (signInWithGoogle에서 이미 처리)
+        if (isSigningIn) {
+          console.log('⏭️ 로그인 진행 중 - 리스너 스킵');
+          return;
+        }
+
         if (firebaseUser) {
           // 사용자 프로필 로드
           const userRef = doc(db, 'users', firebaseUser.uid);
           const userSnap = await getDoc(userRef);
-          
+
           if (userSnap.exists()) {
             const data = userSnap.data();
+
+            // data.role이 없으면 리스너에서 프로필을 생성하지 않고 대기
+            if (!data.role) {
+              console.log('⏳ 프로필 역할 대기 중 - signInWithGoogle 완료 대기');
+              return;
+            }
+
             const profileData: UserProfile = {
               uid: data.uid || firebaseUser.uid,
               email: data.email || firebaseUser.email,
               displayName: data.displayName || firebaseUser.displayName,
               photoURL: data.photoURL || firebaseUser.photoURL,
-              role: data.role || 'student',
+              role: data.role,
               schoolInfo: data.schoolInfo || null,
               createdAt: data.createdAt?.toDate() || new Date(),
               lastLoginAt: data.lastLoginAt?.toDate() || new Date()
             };
-            
+
             console.log('👤 사용자 프로필 로드:', {
               uid: profileData.uid,
               role: profileData.role,
               schoolInfo: profileData.schoolInfo
             });
-            
+
             setUser(firebaseUser);
             setUserProfile(profileData);
           } else {
-            // 프로필이 없으면 기본 학생 역할로 생성
-            const profile = await createOrUpdateUserProfile(firebaseUser, 'student');
-            setUser(firebaseUser);
-            setUserProfile(profile);
+            // 프로필이 완전히 없으면 signInWithGoogle 완료 대기
+            console.log('⏳ 프로필 문서 없음 - signInWithGoogle 완료 대기');
           }
         } else {
           setUser(null);
@@ -278,7 +293,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [isSigningIn]); // isSigningIn을 의존성에 추가
 
   const value: AuthContextType = {
     user,
