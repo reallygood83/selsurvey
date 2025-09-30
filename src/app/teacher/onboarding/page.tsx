@@ -45,7 +45,7 @@ export default function TeacherOnboardingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user || !userProfile) {
       setError('로그인 정보를 확인할 수 없습니다.');
       return;
@@ -60,9 +60,16 @@ export default function TeacherOnboardingPage() {
     setError(null);
 
     try {
+      console.log('🎯 온보딩 시작:', {
+        uid: user.uid,
+        schoolName: formData.schoolName,
+        grade: formData.grade,
+        className: formData.className
+      });
+
       // 반 코드 생성
       const classCode = classService.generateClassCode();
-      
+
       // 반 정보 생성
       const classInfo: Omit<ClassInfo, 'id'> = {
         classCode,
@@ -79,6 +86,7 @@ export default function TeacherOnboardingPage() {
 
       // Firestore에 반 정보 저장
       const classId = await classService.createClass(classInfo);
+      console.log('✅ 학급 생성 완료:', classId);
 
       // 사용자 프로필에 학교 정보 업데이트
       const userRef = doc(db, 'users', user.uid);
@@ -89,12 +97,18 @@ export default function TeacherOnboardingPage() {
         'schoolInfo.classCode': classCode,
         'schoolInfo.teacherId': user.uid
       });
+      console.log('✅ 프로필 업데이트 완료');
 
+      // 중요: 프로필 업데이트 후 AuthContext가 새로고침되도록 잠시 대기
+      // 이렇게 하면 대시보드에서 schoolInfo를 확인할 때 업데이트된 값을 받습니다
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      console.log('🚀 대시보드로 이동');
       // 교사 대시보드로 리다이렉트
       router.push('/teacher/dashboard');
-      
+
     } catch (error) {
-      console.error('온보딩 완료 오류:', error);
+      console.error('❌ 온보딩 완료 오류:', error);
       setError('설정 저장에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);

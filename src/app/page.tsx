@@ -11,28 +11,41 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('🏠 메인 페이지 - 상태:', { 
-      loading, 
-      user: user?.email, 
-      userProfile: userProfile?.role 
+    console.log('🏠 메인 페이지 - 상태:', {
+      loading,
+      user: user?.email,
+      userProfile: userProfile?.role,
+      hasSchoolInfo: !!userProfile?.schoolInfo?.schoolName
     });
-    
+
+    // 로딩이 완료되고 로그인된 상태일 때만 리다이렉트
     if (!loading && user && userProfile) {
       console.log('🚀 리다이렉트 실행 - 역할:', userProfile.role);
-      // 사용자가 이미 로그인되어 있고 프로필이 있으면 적절한 대시보드로 리다이렉트
+
+      // 교사인 경우
       if (userProfile.role === 'teacher') {
-        console.log('👨‍🏫 교사 대시보드로 이동');
-        router.push('/teacher/dashboard');
-      } else if (userProfile.role === 'student') {
-        console.log('👨‍🎓 학생 대시보드로 이동');
+        // 학급 정보가 있으면 대시보드로
+        if (userProfile.schoolInfo?.schoolName) {
+          console.log('👨‍🏫 교사 (학급 설정 완료) → 대시보드로 이동');
+          router.push('/teacher/dashboard');
+        } else {
+          // 학급 정보가 없으면 온보딩으로
+          console.log('👨‍🏫 교사 (학급 미설정) → 온보딩 페이지로 이동');
+          router.push('/teacher/onboarding');
+        }
+      }
+      // 학생인 경우
+      else if (userProfile.role === 'student') {
+        console.log('👨‍🎓 학생 → 학생 대시보드로 이동');
         router.push('/student/dashboard');
-      } else {
+      }
+      // 알 수 없는 역할
+      else {
         console.log('⚠️ 알 수 없는 역할:', userProfile.role);
-        // 역할이 명확하지 않으면 로그인 페이지로 이동
         router.push('/auth/login');
       }
     }
-  }, [user, userProfile, loading]); // router 제거
+  }, [user, userProfile, loading, router]);
 
   if (loading) {
     return (
