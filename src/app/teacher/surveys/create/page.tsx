@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { surveyService } from '@/lib/firestore';
+import { surveyService, classService } from '@/lib/firestore';
 import { Survey, SurveyQuestion, SurveyOption, SELDomain } from '@/types';
 import { selTemplates, SELTemplate } from '@/data/selTemplates';
 import Link from 'next/link';
@@ -53,8 +53,40 @@ export default function CreateSurveyPage() {
     type: 'custom',
     questions: [],
     isActive: false,
-    classCode: userProfile?.schoolInfo?.classCode || ''
+    classCode: '' // 활성 학급 조회 후 설정됨
   });
+
+  const [activeClassCode, setActiveClassCode] = useState<string>('');
+
+  // 활성 학급 조회
+  useEffect(() => {
+    const loadActiveClass = async () => {
+      if (!user?.uid) return;
+
+      try {
+        const activeClass = await classService.getActiveClass(user.uid);
+        if (activeClass) {
+          console.log('✅ [SurveyCreate] 활성 학급 확인:', {
+            className: activeClass.className,
+            classCode: activeClass.classCode
+          });
+          setActiveClassCode(activeClass.classCode);
+          setSurvey(prev => ({
+            ...prev,
+            classCode: activeClass.classCode
+          }));
+        } else {
+          console.log('⚠️ [SurveyCreate] 활성 학급이 없습니다');
+          alert('활성 학급이 없습니다. 먼저 학급을 생성하고 활성화해주세요.');
+          router.push('/teacher/classes/manage');
+        }
+      } catch (error) {
+        console.error('❌ [SurveyCreate] 활성 학급 조회 오류:', error);
+      }
+    };
+
+    loadActiveClass();
+  }, [user, router]);
 
   // SEL 영역 매핑
   const selDomains = {
@@ -140,8 +172,14 @@ export default function CreateSurveyPage() {
       return;
     }
 
-    if (!user?.uid || !userProfile?.schoolInfo?.classCode) {
-      alert('교사 정보 또는 반 정보가 없습니다. 로그인을 다시 확인해주세요.');
+    if (!user?.uid) {
+      alert('교사 정보가 없습니다. 로그인을 다시 확인해주세요.');
+      return;
+    }
+
+    if (!activeClassCode) {
+      alert('활성 학급이 없습니다. 먼저 학급을 생성하고 활성화해주세요.');
+      router.push('/teacher/classes/manage');
       return;
     }
 
@@ -155,11 +193,18 @@ export default function CreateSurveyPage() {
       const surveyData: Omit<Survey, 'id'> = {
         ...survey as Survey,
         teacherId: user.uid,
-        classCode: userProfile.schoolInfo.classCode,
+        classCode: activeClassCode, // ✅ 활성 학급의 classCode 사용
         isActive: publish,
         createdAt: new Date(),
         updatedAt: new Date()
       };
+
+      console.log('📝 [SurveyCreate] 설문 저장:', {
+        teacherId: user.uid,
+        classCode: activeClassCode,
+        title: surveyData.title,
+        isActive: publish
+      });
 
       await surveyService.createSurvey(surveyData);
       
@@ -207,7 +252,7 @@ export default function CreateSurveyPage() {
       type: 'template',
       questions: convertedQuestions,
       isActive: false,
-      classCode: userProfile?.schoolInfo?.classCode || '',
+      classCode: activeClassCode, // ✅ 활성 학급의 classCode 사용
       grade: template.grade === '3-4' ? [3, 4] : [5, 6]
     });
     setSelectedTab('custom');
@@ -440,7 +485,7 @@ export default function CreateSurveyPage() {
                 type: 'ai-generated',
                 questions: convertedQuestions,
                 isActive: false,
-                classCode: userProfile?.schoolInfo?.classCode || '',
+                classCode: activeClassCode, // ✅ 활성 학급의 classCode 사용
                 grade: generatedSurvey.grade === '3-4' ? [3, 4] : [5, 6]
               });
 
