@@ -217,7 +217,7 @@ export default function TeacherDashboardPage() {
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         ).slice(0, 50));
 
-        const surveysData = await surveyService.getSurveysByClass(classData.classCode);
+        const surveysData = await surveyService.getSurveysByTeacher(user.uid);
         setExistingSurveys(surveysData);
 
         const today = new Date().toISOString().split('T')[0];
