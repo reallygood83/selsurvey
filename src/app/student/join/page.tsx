@@ -26,6 +26,28 @@ export default function StudentJoinPage() {
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [studentName, setStudentName] = useState('');
 
+  // 사용자 역할을 'student'로 업데이트
+  const ensureStudentRole = async () => {
+    if (user && userProfile && !userProfile.role && db) {
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          role: 'student'
+        });
+        console.log('✅ 사용자 역할을 student로 업데이트했습니다');
+      } catch (error) {
+        console.error('❌ 사용자 역할 업데이트 오류:', error);
+      }
+    }
+  };
+
+  // 사용자가 로드되면 role 확인 및 업데이트
+  useEffect(() => {
+    if (user && userProfile) {
+      ensureStudentRole();
+    }
+  }, [user, userProfile]);
+
   // URL에서 class 파라미터 가져오기 (직접 참여 링크)
   useEffect(() => {
     const classFromUrl = searchParams?.get('class');
@@ -141,14 +163,37 @@ export default function StudentJoinPage() {
     }
   };
 
-  if (!user || userProfile?.role !== 'student') {
+  // 로그인하지 않은 경우 로그인 페이지로 이동
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <CardTitle className="text-2xl font-bold mb-2">로그인이 필요합니다</CardTitle>
+              <p className="text-muted-foreground mb-4">반에 참여하려면 먼저 로그인해주세요.</p>
+              <Button 
+                onClick={() => router.push('/register/student' + (classCode ? `?classCode=${classCode}` : ''))}
+                className="w-full"
+              >
+                구글 계정으로 로그인하기
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // 교사 역할인 경우에만 접근 차단
+  if (userProfile?.role === 'teacher') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="text-center">
               <CardTitle className="text-2xl font-bold mb-2">접근 권한이 없습니다</CardTitle>
-              <p className="text-muted-foreground">학생만 접근할 수 있는 페이지입니다.</p>
+              <p className="text-muted-foreground">교사는 이 페이지에 접근할 수 없습니다.</p>
             </div>
           </CardContent>
         </Card>
@@ -179,7 +224,7 @@ export default function StudentJoinPage() {
                   <UserPlus className="w-6 h-6 text-green-600" />
                 </div>
                 <CardTitle className="text-lg font-medium text-gray-900 mb-1">
-                  안녕하세요, {userProfile.displayName}님!
+                  안녕하세요, {userProfile?.displayName}님!
                 </CardTitle>
                 <p className="text-sm text-gray-600">
                   SEL 감정분석 플랫폼에 오신 것을 환영합니다. 먼저 반에 참여해주세요.
@@ -270,7 +315,16 @@ export default function StudentJoinPage() {
                     onChange={(e) => {
                       const newName = e.target.value;
                       setStudentName(newName);
-                      console.log('👤 이름 입력:', newName, '길이:', newName.trim().length, '버튼 활성화 조건:', !newName.trim() || loading);
+                      console.log('👤 이름 입력 상세 정보:', {
+                        inputValue: newName,
+                        trimmedLength: newName.trim().length,
+                        classInfo: classInfo ? 'O' : 'X',
+                        loading: loading ? 'O' : 'X',
+                        buttonDisabled: !newName.trim() || loading,
+                        user: user ? 'O' : 'X',
+                        userProfile: userProfile ? 'O' : 'X',
+                        userRole: userProfile?.role || 'undefined'
+                      });
                     }}
                     placeholder="실명을 입력해주세요"
                   />
@@ -301,11 +355,28 @@ export default function StudentJoinPage() {
                   )}
                 </Button>
                 
-                {/* 디버깅용 정보 */}
-                <div className="mt-2 text-xs text-gray-500">
-                  디버깅: classInfo={classInfo ? '✓' : '✗'}, 
-                  studentName='{studentName}' ({studentName.trim().length}글자), 
-                  loading={loading ? '✓' : '✗'}
+                {/* 디버깅용 정보 - 확장 */}
+                <div className="mt-2 text-xs text-gray-500 space-y-1">
+                  <div>
+                    <strong>버튼 상태:</strong> {(!studentName.trim() || loading) ? '비활성화' : '활성화'}
+                  </div>
+                  <div>
+                    <strong>classInfo:</strong> {classInfo ? '✓ 확인됨' : '✗ 없음'} 
+                    {classInfo && ` (${classInfo.className})`}
+                  </div>
+                  <div>
+                    <strong>studentName:</strong> '{studentName}' ({studentName.trim().length}글자)
+                  </div>
+                  <div>
+                    <strong>loading:</strong> {loading ? '✓' : '✗'}
+                  </div>
+                  <div>
+                    <strong>user:</strong> {user ? '✓ 로그인됨' : '✗ 로그인안됨'}
+                  </div>
+                  <div>
+                    <strong>userProfile:</strong> {userProfile ? '✓ 있음' : '✗ 없음'} 
+                    {userProfile && ` (role: ${userProfile.role})`}
+                  </div>
                 </div>
               </div>
             )}
