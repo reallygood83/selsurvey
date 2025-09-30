@@ -71,23 +71,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (userSnap.exists()) {
       // 기존 사용자 업데이트
       const existingData = userSnap.data();
+
+      // 중요: 사용자가 로그인 시 선택한 역할을 항상 사용합니다
+      // 이전에는 기존 역할을 우선했지만, 사용자가 다른 역할로 로그인하면
+      // 그 역할로 변경되어야 합니다 (예: 학생 → 교사로 전환)
       const updatedProfile: UserProfile = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
         photoURL: firebaseUser.photoURL,
-        role: existingData.role || role,
+        role: role, // 로그인 시 선택한 역할을 항상 사용
         schoolInfo: existingData.schoolInfo || null,
         createdAt: existingData.createdAt?.toDate() || now,
         lastLoginAt: now,
       };
-      
+
+      console.log('📝 역할 업데이트:', {
+        previousRole: existingData.role,
+        newRole: role,
+        willUpdate: existingData.role !== role
+      });
+
       await setDoc(userRef, {
         ...updatedProfile,
         lastLoginAt: serverTimestamp(),
         schoolInfo: updatedProfile.schoolInfo || null, // undefined 대신 null 사용
       }, { merge: true });
-      
+
       return updatedProfile;
     } else {
       // 새 사용자 생성
