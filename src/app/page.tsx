@@ -182,7 +182,7 @@ export default function HomePage() {
               </h3>
               <span className="text-2xl">💚</span>
             </div>
-            <p className="text-gray-600 mb-2">&copy; 2024 SEL 감정분석 플랫폼. All rights reserved.</p>
+            <p className="text-gray-600 mb-2">&copy; 2025 감정분석 플랫폼 김문정(박달초). All rights reserved.</p>
             <p className="text-emerald-600 font-medium">🌱 사회정서학습을 통한 건강한 학교 문화 조성 🌱</p>
           </div>
         </div>
