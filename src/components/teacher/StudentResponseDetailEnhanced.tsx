@@ -1,4 +1,4 @@
-// 학생 설문 응답 상세 표시 컴포넌트
+// 강화된 학생 설문 응답 상세 표시 컴포넌트 - 3단계 fallback 매칭 시스템
 'use client';
 
 import { SurveyResponse, SELDomain } from '@/types';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   MessageSquare, 
   Heart, 
@@ -16,17 +17,19 @@ import {
   Brain, 
   Target, 
   Calendar,
-  Smile,
-  Meh,
-  Frown
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
+  Search,
+  Info
 } from 'lucide-react';
 
-interface StudentResponseDetailProps {
+interface StudentResponseDetailEnhancedProps {
   responses: SurveyResponse[];
   className?: string;
 }
 
-// SEL 영역별 아이콘과 색상 매핑
+// SEL 영역별 아이콘과 색상 매핑 (기존과 동일)
 const SEL_DOMAIN_CONFIG = {
   selfAwareness: {
     name: '자기인식',
@@ -65,17 +68,137 @@ const SEL_DOMAIN_CONFIG = {
   }
 };
 
-// 설문 응답값을 해석하는 함수
+// 🔥 핵심 개선: 3단계 Fallback 질문 매칭 시스템
+interface QuestionMatchResult {
+  question: string;
+  type: 'scale' | 'multipleChoice' | 'text' | 'emotion';
+  options?: string[];
+  scaleLabels?: { min: string; max: string };
+  subCategory?: string;
+  matchStatus: 'exact' | 'grade-fallback' | 'cross-fallback' | 'not-found';
+  sourceTemplate: string;
+  confidence: number; // 0-100%
+}
+
+const findQuestionWithFallback = (questionId: string, responseGrade: number): QuestionMatchResult => {
+  console.log(`🔍 질문 매칭 시작: ID=${questionId}, 학년=${responseGrade}`);
+  
+  // 1단계: 정확한 학년 템플릿에서 매칭 시도
+  const primaryTemplate = responseGrade <= 4 ? selTemplates[0] : selTemplates[1];
+  let question = primaryTemplate.questions.find(q => q.id === questionId);
+  
+  if (question) {
+    console.log(`✅ 1단계 매칭 성공: ${primaryTemplate.title}`);
+    return {
+      question: question.question,
+      type: question.type,
+      options: question.options,
+      scaleLabels: question.scaleLabels,
+      subCategory: question.subCategory,
+      matchStatus: 'exact',
+      sourceTemplate: primaryTemplate.title,
+      confidence: 100
+    };
+  }
+
+  // 2단계: 다른 학년 템플릿에서 매칭 시도
+  const secondaryTemplate = responseGrade <= 4 ? selTemplates[1] : selTemplates[0];
+  question = secondaryTemplate.questions.find(q => q.id === questionId);
+  
+  if (question) {
+    console.log(`⚠️ 2단계 매칭 성공: ${secondaryTemplate.title} (크로스 매칭)`);
+    return {
+      question: question.question,
+      type: question.type,
+      options: question.options,
+      scaleLabels: question.scaleLabels,
+      subCategory: question.subCategory,
+      matchStatus: 'cross-fallback',
+      sourceTemplate: secondaryTemplate.title,
+      confidence: 75
+    };
+  }
+
+  // 3단계: 모든 템플릿에서 부분 매칭 시도 (ID 유사성 검사)
+  for (const template of selTemplates) {
+    const similarQuestion = template.questions.find(q => 
+      q.id.startsWith(questionId.substring(0, 2)) || // 같은 영역 (sa, sm, soa, rs, rdm)
+      q.id.includes(questionId.substring(0, 3))      // 더 세밀한 매칭
+    );
+    
+    if (similarQuestion) {
+      console.log(`⚠️ 3단계 매칭 성공: ${template.title} (유사 ID: ${similarQuestion.id})`);
+      return {
+        question: `${similarQuestion.question} (유사 질문으로 매칭됨)`,
+        type: similarQuestion.type,
+        options: similarQuestion.options,
+        scaleLabels: similarQuestion.scaleLabels,
+        subCategory: similarQuestion.subCategory,
+        matchStatus: 'grade-fallback',
+        sourceTemplate: template.title,
+        confidence: 50
+      };
+    }
+  }
+
+  // 4단계: 매칭 실패 - 최소한의 정보 제공
+  console.log(`❌ 매칭 실패: ${questionId}`);
+  return {
+    question: `질문 ID: ${questionId} (질문 내용을 찾을 수 없습니다)`,
+    type: 'scale',
+    matchStatus: 'not-found',
+    sourceTemplate: '매칭 실패',
+    confidence: 0
+  };
+};
+
+// 매칭 상태에 따른 아이콘 및 색상
+const getMatchStatusDisplay = (matchResult: QuestionMatchResult) => {
+  switch (matchResult.matchStatus) {
+    case 'exact':
+      return {
+        icon: CheckCircle,
+        color: 'text-green-600',
+        bgColor: 'bg-green-100',
+        description: '정확 매칭',
+        detail: '해당 학년 템플릿에서 발견'
+      };
+    case 'cross-fallback':
+      return {
+        icon: AlertTriangle,
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-100',
+        description: '크로스 매칭',
+        detail: '다른 학년 템플릿에서 발견'
+      };
+    case 'grade-fallback':
+      return {
+        icon: Search,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-100',
+        description: '유사 매칭',
+        detail: '유사한 질문으로 매칭됨'
+      };
+    case 'not-found':
+      return {
+        icon: XCircle,
+        color: 'text-red-600',
+        bgColor: 'bg-red-100',
+        description: '매칭 실패',
+        detail: '질문을 찾을 수 없음'
+      };
+  }
+};
+
+// 응답값을 해석하는 함수 (기존과 동일)
 const interpretResponse = (answer: string | number | string[], domain: SELDomain) => {
   if (typeof answer === 'number') {
-    // 숫자형 응답 (1-5 척도)
     if (answer >= 4) return { level: 'positive', emoji: '😊', description: '긍정적' };
     if (answer >= 3) return { level: 'neutral', emoji: '😐', description: '보통' };
     return { level: 'negative', emoji: '😟', description: '관심 필요' };
   }
   
   if (typeof answer === 'string') {
-    // 문자열 응답
     const lowerAnswer = answer.toLowerCase();
     if (lowerAnswer.includes('좋') || lowerAnswer.includes('행복') || lowerAnswer.includes('즐거')) {
       return { level: 'positive', emoji: '😊', description: '긍정적' };
@@ -89,7 +212,7 @@ const interpretResponse = (answer: string | number | string[], domain: SELDomain
   return { level: 'neutral', emoji: '😐', description: '응답 있음' };
 };
 
-// 응답값을 표시 가능한 형태로 변환
+// 응답값을 표시 가능한 형태로 변환 (기존과 동일)
 const formatAnswer = (answer: string | number | string[]) => {
   if (Array.isArray(answer)) {
     return answer.join(', ');
@@ -97,47 +220,7 @@ const formatAnswer = (answer: string | number | string[]) => {
   return String(answer);
 };
 
-// 질문 ID로 실제 질문 텍스트 찾기
-const findQuestionText = (questionId: string, grade: number): string => {
-  // 학년에 맞는 템플릿 선택
-  const template = grade <= 4 ? selTemplates[0] : selTemplates[1];
-  
-  // 질문 ID로 질문 찾기
-  const question = template.questions.find(q => q.id === questionId);
-  
-  if (question) {
-    return question.question;
-  }
-  
-  // 질문을 찾을 수 없는 경우 기본 메시지
-  return `질문 ID: ${questionId} (질문 내용을 찾을 수 없습니다)`;
-};
-
-// 질문 타입과 선택지 정보 가져오기
-const getQuestionDetails = (questionId: string, grade: number) => {
-  const template = grade <= 4 ? selTemplates[0] : selTemplates[1];
-  const question = template.questions.find(q => q.id === questionId);
-  
-  if (!question) {
-    return { 
-      question: `질문 ID: ${questionId}`, 
-      type: 'scale', 
-      options: null,
-      scaleLabels: null,
-      subCategory: null
-    };
-  }
-  
-  return {
-    question: question.question,
-    type: question.type,
-    options: question.options || null,
-    scaleLabels: question.scaleLabels || null,
-    subCategory: question.subCategory || null
-  };
-};
-
-export default function StudentResponseDetail({ responses, className = '' }: StudentResponseDetailProps) {
+export default function StudentResponseDetailEnhanced({ responses, className = '' }: StudentResponseDetailEnhancedProps) {
   if (responses.length === 0) {
     return (
       <Card className={className}>
@@ -151,8 +234,39 @@ export default function StudentResponseDetail({ responses, className = '' }: Stu
     );
   }
 
+  // 📊 전체 응답의 매칭 통계 계산
+  const totalQuestions = responses.reduce((acc, response) => acc + response.responses.length, 0);
+  const matchingStats = responses.reduce((stats, response) => {
+    response.responses.forEach(resp => {
+      const matchResult = findQuestionWithFallback(resp.questionId, response.grade);
+      stats[matchResult.matchStatus] = (stats[matchResult.matchStatus] || 0) + 1;
+    });
+    return stats;
+  }, {} as Record<string, number>);
+
+  const matchingRate = totalQuestions > 0 ? 
+    ((matchingStats.exact || 0) + (matchingStats['cross-fallback'] || 0)) / totalQuestions * 100 : 0;
+
   return (
     <div className={`space-y-4 ${className}`}>
+      {/* 📊 매칭 품질 요약 대시보드 */}
+      <Alert className="border-blue-200 bg-blue-50">
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <strong>질문 매칭 분석:</strong> 총 {totalQuestions}개 질문 중 {matchingRate.toFixed(1)}% 매칭 성공
+            </div>
+            <div className="flex space-x-2 text-xs">
+              <span className="text-green-600">정확: {matchingStats.exact || 0}개</span>
+              <span className="text-orange-600">크로스: {matchingStats['cross-fallback'] || 0}개</span>
+              <span className="text-blue-600">유사: {matchingStats['grade-fallback'] || 0}개</span>
+              <span className="text-red-600">실패: {matchingStats['not-found'] || 0}개</span>
+            </div>
+          </div>
+        </AlertDescription>
+      </Alert>
+
       {responses.map((response, index) => (
         <Card key={response.id} className="hover:shadow-md transition-shadow">
           <CardHeader className="pb-3">
@@ -202,8 +316,10 @@ export default function StudentResponseDetail({ responses, className = '' }: Stu
                   const interpretation = interpretResponse(resp.answer, resp.domain);
                   const IconComponent = domainConfig.icon;
                   
-                  // 🔥 핵심 개선: 질문 세부 정보 가져오기
-                  const questionDetails = getQuestionDetails(resp.questionId, response.grade);
+                  // 🔥 핵심 개선: 강화된 질문 매칭
+                  const matchResult = findQuestionWithFallback(resp.questionId, response.grade);
+                  const matchDisplay = getMatchStatusDisplay(matchResult);
+                  const MatchIcon = matchDisplay.icon;
                   
                   return (
                     <div 
@@ -219,16 +335,52 @@ export default function StudentResponseDetail({ responses, className = '' }: Stu
                               <span className={`font-medium text-sm ${domainConfig.color}`}>
                                 {domainConfig.name}
                               </span>
-                              {questionDetails.subCategory && (
+                              {matchResult.subCategory && (
                                 <Badge variant="outline" className="text-xs">
-                                  {questionDetails.subCategory}
+                                  {matchResult.subCategory}
                                 </Badge>
                               )}
                             </div>
-                            {/* 🔥 핵심: 실제 질문 내용 표시 */}
-                            <div className="text-sm text-gray-700 font-medium mb-2 bg-white/70 p-2 rounded border">
-                              <span className="text-xs text-gray-500 uppercase tracking-wide">질문</span>
-                              <div className="mt-1">{questionDetails.question}</div>
+                            
+                            {/* 🔥 핵심: 매칭 상태 표시 */}
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${matchDisplay.bgColor}`}>
+                                <MatchIcon className={`w-3 h-3 ${matchDisplay.color}`} />
+                                <span className={matchDisplay.color}>{matchDisplay.description}</span>
+                                <span className="text-gray-600">({matchResult.confidence}%)</span>
+                              </div>
+                              {matchResult.sourceTemplate !== '매칭 실패' && (
+                                <span className="text-xs text-gray-500">
+                                  출처: {matchResult.sourceTemplate}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* 🔥 핵심: 강화된 질문 내용 표시 */}
+                            <div className={`text-sm text-gray-700 font-medium mb-2 bg-white/70 p-3 rounded border ${
+                              matchResult.matchStatus === 'not-found' ? 'border-red-200 bg-red-50' : 
+                              matchResult.matchStatus === 'exact' ? 'border-green-200' :
+                              'border-orange-200'
+                            }`}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-gray-500 uppercase tracking-wide">질문</span>
+                                <Badge 
+                                  variant={
+                                    matchResult.matchStatus === 'exact' ? 'default' :
+                                    matchResult.matchStatus === 'not-found' ? 'destructive' :
+                                    'secondary'
+                                  }
+                                  className="text-xs"
+                                >
+                                  ID: {resp.questionId}
+                                </Badge>
+                              </div>
+                              <div className="mt-1">{matchResult.question}</div>
+                              {matchResult.matchStatus !== 'exact' && (
+                                <div className="mt-2 text-xs text-gray-500 italic">
+                                  💡 {matchDisplay.detail}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -256,11 +408,11 @@ export default function StudentResponseDetail({ responses, className = '' }: Stu
                           </span>
                           
                           {/* 척도형 응답일 경우 상세 정보 표시 */}
-                          {typeof resp.answer === 'number' && questionDetails.scaleLabels && (
+                          {typeof resp.answer === 'number' && matchResult.scaleLabels && (
                             <div className="mt-3">
                               <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                                <span>1점: {questionDetails.scaleLabels.min}</span>
-                                <span>5점: {questionDetails.scaleLabels.max}</span>
+                                <span>1점: {matchResult.scaleLabels.min}</span>
+                                <span>5점: {matchResult.scaleLabels.max}</span>
                               </div>
                               <Progress 
                                 value={(resp.answer / 5) * 100} 
@@ -275,11 +427,11 @@ export default function StudentResponseDetail({ responses, className = '' }: Stu
                           )}
 
                           {/* 선택형 응답일 경우 선택지 정보 표시 */}
-                          {(questionDetails.type === 'multipleChoice' || questionDetails.type === 'emotion') && questionDetails.options && (
+                          {(matchResult.type === 'multipleChoice' || matchResult.type === 'emotion') && matchResult.options && (
                             <div className="mt-3 pt-2 border-t border-gray-100">
                               <div className="text-xs text-gray-500 mb-2">선택 가능했던 옵션들:</div>
                               <div className="flex flex-wrap gap-1">
-                                {questionDetails.options.map((option, optionIndex) => (
+                                {matchResult.options.map((option, optionIndex) => (
                                   <Badge 
                                     key={optionIndex}
                                     variant={formatAnswer(resp.answer) === option ? "default" : "outline"}

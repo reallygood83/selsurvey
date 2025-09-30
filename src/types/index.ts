@@ -342,3 +342,43 @@ export interface ClassSettings {
     dataRetentionPeriod: number; // 월 단위
   };
 }
+
+// AI 상담 리포트
+export interface AIReport {
+  id: string;
+  studentId: string;
+  teacherId: string;
+  studentName: string;
+  grade: Grade;
+  classCode: string;
+  
+  // 개인화된 리포트 데이터
+  uniqueProfile?: string;
+  strengthsFromData?: string[];
+  concernsFromData?: string[];
+  personalizedStrategies?: string[];
+  classroomApproach?: string[];
+  parentGuidance?: string[];
+  specificGoals?: string[];
+  evidenceQuotes?: string[];
+  
+  // 기존 리포트 데이터 (호환성)
+  summary?: string;
+  strengths?: string[];
+  concernAreas?: string[];
+  recommendations?: string[];
+  classroomStrategies?: string[];
+  parentSuggestions?: string[];
+  nextSteps?: string[];
+  
+  // 메타데이터
+  analysisDataSource: {
+    responsesCount: number;
+    analysesCount: number;
+    period: string;
+  };
+  
+  generatedAt: Date;
+  isPersonalized: boolean; // 개인화된 리포트인지 구분
+  version: string; // 리포트 생성 버전
+}

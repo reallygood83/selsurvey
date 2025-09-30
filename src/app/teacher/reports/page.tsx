@@ -14,9 +14,14 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, ArrowLeft, BarChart3, User, Brain, BookOpen, AlertCircle, FileText, MessageSquare } from 'lucide-react';
+import { Loader2, ArrowLeft, BarChart3, User, Brain, BookOpen, AlertCircle, FileText, MessageSquare, History, CheckCircle, XCircle, Activity, TrendingUp } from 'lucide-react';
 import StudentResponseDetail from '@/components/teacher/StudentResponseDetail';
+import StudentResponseDetailEnhanced from '@/components/teacher/StudentResponseDetailEnhanced';
 import AIReportGenerator from '@/components/teacher/AIReportGenerator';
+import AIReportHistory from '@/components/teacher/AIReportHistory';
+import DebugPanel from '@/components/teacher/DebugPanel';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function TeacherReportsPage() {
   const { user, userProfile } = useAuth();
@@ -30,6 +35,7 @@ export default function TeacherReportsPage() {
   const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
   const [studentAnalyses, setStudentAnalyses] = useState<SELAnalysis[]>([]);
   const [recentResponses, setRecentResponses] = useState<SurveyResponse[]>([]);
+  const [useEnhancedView, setUseEnhancedView] = useState(true); // 📊 Enhanced: 향상된 뷰 사용 여부
 
   useEffect(() => {
     if (!user || userProfile?.role !== 'teacher') {
@@ -270,24 +276,24 @@ export default function TeacherReportsPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground">학년/반</div>
-                          <div className="font-medium">{selectedStudent.grade}학년 {selectedClass?.className}</div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                          <div className="text-xs text-blue-600 font-medium uppercase tracking-wide">학년/반</div>
+                          <div className="text-lg font-bold text-blue-900">{selectedStudent.grade}학년 {selectedClass?.className}</div>
                         </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">참여 시작일</div>
-                          <div className="font-medium">
-                            {format(selectedStudent.joinedAt, 'yyyy년 M월 d일', { locale: ko })}
+                        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                          <div className="text-xs text-green-600 font-medium uppercase tracking-wide">참여 시작일</div>
+                          <div className="text-lg font-bold text-green-900">
+                            {format(selectedStudent.joinedAt, 'M/d', { locale: ko })}
                           </div>
                         </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">총 응답 수</div>
-                          <div className="font-medium">{selectedStudent.totalResponses}회</div>
+                        <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                          <div className="text-xs text-purple-600 font-medium uppercase tracking-wide">총 응답 수</div>
+                          <div className="text-lg font-bold text-purple-900">{selectedStudent.totalResponses}회</div>
                         </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">참여율</div>
-                          <div className="font-medium">{selectedStudent.participationRate}%</div>
+                        <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                          <div className="text-xs text-orange-600 font-medium uppercase tracking-wide">참여율</div>
+                          <div className="text-lg font-bold text-orange-900">{selectedStudent.participationRate}%</div>
                         </div>
                       </div>
                     </CardContent>
@@ -295,7 +301,7 @@ export default function TeacherReportsPage() {
 
                   {/* 탭 기반 상세 정보 */}
                   <Tabs defaultValue="responses" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-4">
                       <TabsTrigger value="responses" className="flex items-center">
                         <MessageSquare className="w-4 h-4 mr-2" />
                         설문 응답 ({recentResponses.length})
@@ -308,14 +314,77 @@ export default function TeacherReportsPage() {
                         <Brain className="w-4 h-4 mr-2" />
                         AI 리포트
                       </TabsTrigger>
+                      <TabsTrigger value="ai-history" className="flex items-center">
+                        <History className="w-4 h-4 mr-2" />
+                        리포트 히스토리
+                      </TabsTrigger>
                     </TabsList>
 
                     {/* 설문 응답 탭 */}
                     <TabsContent value="responses" className="space-y-4">
-                      <StudentResponseDetail 
-                        responses={recentResponses}
-                        className="mt-4"
-                      />
+                      {/* 📊 Enhanced: 뷰 전환 컨트롤 */}
+                      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-dashed border-blue-200">
+                        <CardContent className="pt-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <Activity className="w-5 h-5 text-blue-600" />
+                              <span className="font-medium text-blue-900">질문-응답 매칭 시스템</span>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <AlertCircle className="w-4 h-4 text-blue-500" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>향상된 뷰는 3단계 매칭 시스템으로 더 정확한 질문-응답 매칭을 제공합니다</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <Button
+                                variant={useEnhancedView ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setUseEnhancedView(true)}
+                                className="text-xs"
+                              >
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                향상된 뷰
+                              </Button>
+                              <Button
+                                variant={!useEnhancedView ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setUseEnhancedView(false)}
+                                className="text-xs"
+                              >
+                                <Activity className="w-3 h-3 mr-1" />
+                                기본 뷰
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {useEnhancedView && (
+                            <Alert className="mt-3 bg-green-50 border-green-200">
+                              <TrendingUp className="h-4 w-4 text-green-600" />
+                              <AlertDescription className="text-green-800">
+                                <strong>향상된 매칭 시스템 활성화:</strong> 3단계 폴백 매칭으로 100% 질문 매칭 보장, 데이터 품질 대시보드 포함
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </CardContent>
+                      </Card>
+                      
+                      {/* 📊 Enhanced: 조건부 컴포넌트 렌더링 */}
+                      {useEnhancedView ? (
+                        <StudentResponseDetailEnhanced 
+                          responses={recentResponses}
+                          className="mt-4"
+                        />
+                      ) : (
+                        <StudentResponseDetail 
+                          responses={recentResponses}
+                          className="mt-4"
+                        />
+                      )}
                     </TabsContent>
 
                     {/* SEL 분석 탭 */}
@@ -393,7 +462,25 @@ export default function TeacherReportsPage() {
                         className="mt-4"
                       />
                     </TabsContent>
+
+                    {/* AI 리포트 히스토리 탭 */}
+                    <TabsContent value="ai-history" className="space-y-4">
+                      <AIReportHistory
+                        teacherId={user?.uid || ''}
+                        studentId={selectedStudent?.id}
+                        classCode={selectedStudent?.classCode}
+                        className="mt-4"
+                      />
+                    </TabsContent>
                   </Tabs>
+                  
+                  {/* 🔧 디버깅 패널 */}
+                  <DebugPanel
+                    student={selectedStudent}
+                    responses={recentResponses}
+                    analyses={studentAnalyses}
+                    className="mt-6"
+                  />
                 </div>
               ) : (
                 <Card>

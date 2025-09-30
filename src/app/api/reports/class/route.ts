@@ -110,8 +110,8 @@ async function generateClassSELAnalysis(
       end: dateRange.end.toISOString().split('T')[0],
       duration: Math.ceil((dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24))
     },
-    responsesByDomain: {} as any,
-    responsePatterns: [] as any[]
+    responsesByDomain: {} as Record<string, unknown>,
+    responsePatterns: [] as Record<string, unknown>[]
   };
 
   // 도메인별 응답 분석
