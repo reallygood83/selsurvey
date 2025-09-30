@@ -21,6 +21,7 @@ import {
   Shield,
   Target
 } from 'lucide-react';
+import ReportShareManager from './ReportShareManager';
 
 interface AIReportGeneratorProps {
   student: StudentProfile;
@@ -641,6 +642,15 @@ ${reportData.nextSteps?.map(item => `• ${item}`).join('\n') || ''}
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* 리포트 공유 및 다운로드 기능 */}
+      {reportData && (
+        <ReportShareManager
+          reportData={reportData}
+          studentName={student.name}
+          studentId={student.id}
+        />
       )}
     </div>
   );
