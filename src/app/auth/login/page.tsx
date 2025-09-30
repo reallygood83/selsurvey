@@ -33,14 +33,22 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async (role: 'teacher' | 'student') => {
     if (!role) return;
-    
+
     clearError();
     setIsAuthenticating(true);
-    
+
     try {
       await signInWithGoogle(role);
-      // 로그인 성공 시 대시보드로 이동
-      router.push(role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard');
+      // 교사 로그인 성공 후 리다이렉트
+      if (role === 'teacher') {
+        // 최초 로그인(schoolInfo 없음) → 온보딩 페이지
+        // 기존 교사(schoolInfo 있음) → 대시보드
+        // 온보딩 페이지에서 schoolInfo 체크하도록 일단 온보딩으로 보냄
+        router.push('/teacher/onboarding');
+      } else {
+        // 학생은 대시보드로
+        router.push('/student/dashboard');
+      }
     } catch (error) {
       console.error('로그인 오류:', error);
     } finally {
