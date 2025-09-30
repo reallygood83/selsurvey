@@ -17,9 +17,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, BookOpen, Info, CheckCircle } from 'lucide-react';
 
 export default function TeacherOnboardingPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const router = useRouter();
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -100,6 +100,18 @@ export default function TeacherOnboardingPage() {
       setLoading(false);
     }
   };
+
+  // authLoading이 끝날 때까지 로딩 화면 표시 (너무 빠른 권한 체크 방지)
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">인증 확인 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user || userProfile?.role !== 'teacher') {
     return (

@@ -24,9 +24,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function TeacherReportsPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const router = useRouter();
-  
+
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
@@ -38,13 +38,16 @@ export default function TeacherReportsPage() {
   const [useEnhancedView, setUseEnhancedView] = useState(true); // 📊 Enhanced: 향상된 뷰 사용 여부
 
   useEffect(() => {
+    // authLoading이 끝날 때까지 대기
+    if (authLoading) return;
+
     if (!user || userProfile?.role !== 'teacher') {
       router.push('/auth/login?role=teacher');
       return;
     }
 
     loadTeacherData();
-  }, [user, userProfile, router]);
+  }, [user, userProfile, authLoading, router]);
 
   useEffect(() => {
     if (selectedClassId) {
@@ -145,10 +148,16 @@ export default function TeacherReportsPage() {
   };
 
 
-  if (loading) {
+  // authLoading이 끝날 때까지 로딩 화면 표시 (너무 빠른 권한 체크 방지)
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">
+            {authLoading ? '인증 확인 중...' : '데이터 로딩 중...'}
+          </p>
+        </div>
       </div>
     );
   }

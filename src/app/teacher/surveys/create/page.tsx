@@ -37,7 +37,7 @@ import { TeacherTooltip, SELDomainTooltip, QuestionTypeTooltip, SurveyTooltip } 
 import SurveyValidator from '@/components/teacher/SurveyValidator';
 
 export default function CreateSurveyPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'template' | 'ai' | 'custom'>('template');
@@ -232,6 +232,18 @@ export default function CreateSurveyPage() {
       loadUserApiKey();
     }
   }, [user]);
+
+  // authLoading이 끝날 때까지 로딩 화면 표시 (너무 빠른 권한 체크 방지)
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">인증 확인 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user || userProfile?.role !== 'teacher') {
     return (

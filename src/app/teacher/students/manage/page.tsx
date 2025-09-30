@@ -29,7 +29,7 @@ interface StudentWithResponses extends StudentProfile {
 }
 
 export default function StudentManagePage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [students, setStudents] = useState<StudentWithResponses[]>([]);
@@ -276,6 +276,18 @@ export default function StudentManagePage() {
     setSelectedStudent(student);
     setShowResponsesDialog(true);
   };
+
+  // authLoading이 끝날 때까지 로딩 화면 표시 (너무 빠른 권한 체크 방지)
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">인증 확인 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user || userProfile?.role !== 'teacher') {
     return (
