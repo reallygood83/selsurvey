@@ -660,6 +660,7 @@ export default function TeacherDashboardPage() {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* 오늘의 학급 감정 현황 */}
           {classInfo && (
