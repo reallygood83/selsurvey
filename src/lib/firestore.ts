@@ -511,6 +511,44 @@ export const surveyService = {
       ...response,
       submittedAt: toTimestamp(response.submittedAt as Date)
     });
+
+    // 학생 프로필 통계 업데이트
+    try {
+      const studentRef = doc(db, COLLECTIONS.STUDENTS, response.studentId);
+      const studentDoc = await getDoc(studentRef);
+      
+      if (studentDoc.exists()) {
+        const studentData = studentDoc.data();
+        const currentTotalResponses = studentData.totalResponses || 0;
+        
+        // 모든 설문 응답 수 조회하여 참여율 계산
+        const allResponsesQuery = query(
+          collection(db, COLLECTIONS.SURVEY_RESPONSES),
+          where('studentId', '==', response.studentId)
+        );
+        const allResponsesSnapshot = await getDocs(allResponsesQuery);
+        const totalResponseCount = allResponsesSnapshot.size;
+        
+        // 참여율 계산 (예: 월 4회 설문 기준으로 계산)
+        const expectedMonthlyResponses = 4; // 일일(주3회), 주간(주1회) 기준
+        const participationRate = Math.min(100, Math.round((totalResponseCount / expectedMonthlyResponses) * 100));
+        
+        await updateDoc(studentRef, {
+          totalResponses: totalResponseCount,
+          participationRate: participationRate,
+          lastResponseDate: toTimestamp(response.submittedAt as Date)
+        });
+        
+        console.log(`✅ 학생 ${response.studentId} 통계 업데이트 완료:`, {
+          totalResponses: totalResponseCount,
+          participationRate: participationRate
+        });
+      }
+    } catch (error) {
+      console.error('❌ 학생 프로필 통계 업데이트 오류:', error);
+      // 통계 업데이트 실패해도 설문 응답 저장은 성공으로 처리
+    }
+    
     return docRef.id;
   },
 
