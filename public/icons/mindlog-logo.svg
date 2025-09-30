@@ -1,0 +1,22 @@
+<svg width="180" height="40" viewBox="0 0 180 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Brain icon with heart -->
+  <g id="brain-heart">
+    <!-- Brain outline -->
+    <path d="M20 8C16 8 13 11 13 15C13 16 13.5 17 14 18C13 18.5 12 19.5 12 21C12 23 13.5 25 15.5 26C15 26.5 14.5 27.5 14.5 28.5C14.5 30.5 16 32 18 32C18 32 18.5 32 19 32C19.5 32 20 32 20 32C20 32 20.5 32 21 32C21.5 32 22 32 22 32C24 32 25.5 30.5 25.5 28.5C25.5 27.5 25 26.5 24.5 26C26.5 25 28 23 28 21C28 19.5 27 18.5 26 18C26.5 17 27 16 27 15C27 11 24 8 20 8Z" fill="#3B82F6" stroke="#2563EB" stroke-width="1.5"/>
+
+    <!-- Heart in center -->
+    <path d="M20 18C19.5 18 19 18.2 18.6 18.6C18.2 18.2 17.5 18 17 18C15.5 18 14.5 19 14.5 20.5C14.5 22.5 16.5 24 20 26C23.5 24 25.5 22.5 25.5 20.5C25.5 19 24.5 18 23 18C22.5 18 22 18.2 21.4 18.6C21 18.2 20.5 18 20 18Z" fill="#EF4444"/>
+  </g>
+
+  <!-- MindLog text -->
+  <g id="text" transform="translate(45, 8)">
+    <!-- Mind -->
+    <text x="0" y="17" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="700" fill="#1F2937">Mind</text>
+
+    <!-- Log -->
+    <text x="62" y="17" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="700" fill="#3B82F6">Log</text>
+
+    <!-- Subtitle -->
+    <text x="0" y="30" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="500" fill="#6B7280" letter-spacing="0.5">마음을 기록하는 SEL 플랫폼</text>
+  </g>
+</svg>

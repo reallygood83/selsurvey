@@ -7,10 +7,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { classService, studentService, surveyService } from '@/lib/firestore';
 import { ClassInfo, StudentProfile, SurveyResponse, Survey } from '@/types';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity, MessageSquare, Download, Calendar, User, UserPlus, ArrowUp, HelpCircle } from 'lucide-react';
+import { Loader2, Users, CheckCircle, ClipboardList, TrendingUp, BookOpen, BarChart3, Eye, LogOut, Menu, X, Settings, FileText, Home, Plus, ChevronRight, Activity, MessageSquare, Download, Calendar, User, UserPlus, ArrowUp, HelpCircle, GraduationCap } from 'lucide-react';
 import { StudentAnalysisCard } from '@/components/teacher/StudentAnalysisCard';
 import { ClassMoodOverview } from '@/components/teacher/ClassMoodOverview';
 import { StudentEmotionChart } from '@/components/teacher/StudentEmotionChart';
@@ -386,9 +387,10 @@ export default function TeacherDashboardPage() {
     { name: '대시보드', href: '/teacher/dashboard', icon: Home, current: true },
     { name: '새 설문 만들기', href: '/teacher/surveys/create', icon: Plus },
     { name: '설문 관리', href: '/teacher/surveys/manage', icon: ClipboardList },
-    { name: '학생 관리', href: '/teacher/students/manage', icon: Users },
-    { name: '학생 초대', href: '/teacher/invite', icon: UserPlus },
     { name: '리포트 생성', href: '/teacher/reports', icon: BarChart3 },
+    { name: '학생 관리', href: '/teacher/students/manage', icon: Users },
+    { name: '학급 관리', href: '/teacher/classes/manage', icon: GraduationCap },
+    { name: '학생 초대', href: '/teacher/invite', icon: UserPlus },
     { name: '사용자 매뉴얼', href: '/teacher/manual', icon: HelpCircle },
     { name: '설정', href: '/teacher/settings', icon: Settings },
   ];
@@ -399,10 +401,16 @@ export default function TeacherDashboardPage() {
       <div className={`fixed inset-0 z-40 lg:hidden ${sidebarOpen ? '' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="relative flex flex-col w-64 bg-white">
-          <div className="flex items-center justify-between h-16 px-6 bg-primary">
-            <h1 className="text-lg font-semibold text-white">MindLog</h1>
+          <div className="flex items-center justify-between h-16 px-6 bg-white border-b">
+            <Image
+              src="/icons/mindlog-logo.svg"
+              alt="MindLog"
+              width={140}
+              height={32}
+              priority
+            />
             <button
-              className="text-white"
+              className="text-gray-600 hover:text-gray-900"
               onClick={() => setSidebarOpen(false)}
             >
               <X className="h-6 w-6" />
@@ -441,8 +449,14 @@ export default function TeacherDashboardPage() {
       {/* 사이드바 (데스크톱) */}
       <div className="hidden lg:flex lg:fixed lg:inset-y-0 lg:w-64 lg:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r">
-          <div className="flex items-center h-16 px-6 bg-primary">
-            <h1 className="text-lg font-semibold text-white">MindLog</h1>
+          <div className="flex items-center h-16 px-6 bg-white border-b">
+            <Image
+              src="/icons/mindlog-logo.svg"
+              alt="MindLog"
+              width={140}
+              height={32}
+              priority
+            />
           </div>
           <nav className="flex-1 px-4 py-6 space-y-1">
             {navigation.map((item) => {
