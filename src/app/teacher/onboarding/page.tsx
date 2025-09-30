@@ -101,32 +101,20 @@ export default function TeacherOnboardingPage() {
     }
   };
 
-  // authLoading이 끝날 때까지 로딩 화면 표시 (너무 빠른 권한 체크 방지)
-  if (authLoading) {
+  // 로그인 중이거나 사용자 정보가 없으면 로딩 표시
+  if (authLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-gray-600">인증 확인 중...</p>
+          <p className="text-gray-600">로딩 중...</p>
         </div>
       </div>
     );
   }
 
-  if (!user || userProfile?.role !== 'teacher') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <CardTitle className="text-2xl font-bold">접근 권한이 없습니다</CardTitle>
-              <p className="mt-2 text-muted-foreground">교사만 접근할 수 있는 페이지입니다.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // 온보딩 페이지는 최초 로그인 시 학급 생성을 위한 페이지이므로
+  // role 체크를 하지 않습니다. Google 로그인만 되어 있으면 접근 가능합니다.
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
