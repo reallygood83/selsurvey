@@ -1140,7 +1140,6 @@ export default function TeacherDashboardPage() {
               )}
             </CardContent>
           </Card>
-          )}
         </main>
       </div>
 
