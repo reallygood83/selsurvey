@@ -17,7 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, BookOpen, Info, CheckCircle } from 'lucide-react';
 
 export default function TeacherOnboardingPage() {
-  const { user, userProfile, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading, refreshProfile } = useAuth();
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
@@ -99,9 +99,10 @@ export default function TeacherOnboardingPage() {
       });
       console.log('✅ 프로필 업데이트 완료');
 
-      // 중요: 프로필 업데이트 후 AuthContext가 새로고침되도록 잠시 대기
-      // 이렇게 하면 대시보드에서 schoolInfo를 확인할 때 업데이트된 값을 받습니다
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 중요: AuthContext에서 프로필을 즉시 새로고침
+      console.log('🔄 AuthContext 프로필 새로고침...');
+      await refreshProfile();
+      console.log('✅ AuthContext 프로필 새로고침 완료');
 
       console.log('🚀 대시보드로 이동');
       // 교사 대시보드로 리다이렉트

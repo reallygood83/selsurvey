@@ -37,6 +37,7 @@ interface AuthContextType {
   signInWithGoogle: (role: 'teacher' | 'student') => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  refreshProfile: () => Promise<void>; // 프로필 수동 새로고침
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -227,6 +228,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
   };
 
+  // 프로필 수동 새로고침
+  const refreshProfile = async (): Promise<void> => {
+    try {
+      if (!auth || !db || !user) {
+        console.warn('⚠️ Cannot refresh profile: Firebase services or user not available');
+        return;
+      }
+
+      console.log('🔄 프로필 새로고침 시작:', { uid: user.uid });
+
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        const profileData: UserProfile = {
+          uid: data.uid || user.uid,
+          email: data.email || user.email,
+          displayName: data.displayName || user.displayName,
+          photoURL: data.photoURL || user.photoURL,
+          role: data.role,
+          schoolInfo: data.schoolInfo || null,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          lastLoginAt: data.lastLoginAt?.toDate() || new Date()
+        };
+
+        console.log('✅ 프로필 새로고침 완료:', {
+          uid: profileData.uid,
+          role: profileData.role,
+          schoolInfo: profileData.schoolInfo
+        });
+
+        setUserProfile(profileData);
+      } else {
+        console.warn('⚠️ 프로필 문서를 찾을 수 없습니다:', { uid: user.uid });
+      }
+    } catch (error) {
+      console.error('❌ 프로필 새로고침 오류:', error);
+      setError('프로필 새로고침 중 오류가 발생했습니다.');
+    }
+  };
+
   // 간단한 인증 상태 리스너
   useEffect(() => {
     if (!auth || !db) {
@@ -302,7 +345,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     error,
     signInWithGoogle,
     logout,
-    clearError
+    clearError,
+    refreshProfile
   };
 
   return (
