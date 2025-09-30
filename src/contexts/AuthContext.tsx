@@ -23,7 +23,7 @@ interface UserProfile {
   displayName: string | null;
   photoURL: string | null;
   role: 'teacher' | 'student';
-  schoolInfo?: SchoolInfo;
+  schoolInfo?: SchoolInfo | null; // null도 허용
   createdAt: Date;
   lastLoginAt: Date;
 }
@@ -67,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         displayName: firebaseUser.displayName,
         photoURL: firebaseUser.photoURL,
         role: existingData.role || role,
-        schoolInfo: existingData.schoolInfo || undefined,
+        schoolInfo: existingData.schoolInfo || null,
         createdAt: existingData.createdAt?.toDate() || now,
         lastLoginAt: now,
       };
@@ -75,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await setDoc(userRef, {
         ...updatedProfile,
         lastLoginAt: serverTimestamp(),
+        schoolInfo: updatedProfile.schoolInfo || null, // undefined 대신 null 사용
       }, { merge: true });
       
       return updatedProfile;
@@ -86,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         displayName: firebaseUser.displayName,
         photoURL: firebaseUser.photoURL,
         role,
+        schoolInfo: null, // 명시적으로 null 설정
         createdAt: now,
         lastLoginAt: now,
       };
@@ -94,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...newProfile,
         createdAt: serverTimestamp(),
         lastLoginAt: serverTimestamp(),
+        schoolInfo: null, // Firestore에 명시적으로 null 저장
       });
       
       return newProfile;
@@ -106,33 +109,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       setLoading(true);
       
+      console.log('🔐 Google 로그인 시도 시작:', { role });
+      
       if (!isFirebaseAvailable() || !auth || !googleProvider) {
-        throw new Error('⚠️ Firebase services not available. Please check your environment variables.');
+        const errorMsg = '⚠️ Firebase services not available. Please check your environment variables.';
+        console.error(errorMsg);
+        throw new Error(errorMsg);
       }
+      
+      console.log('🔐 Firebase 서비스 사용 가능, Popup 로그인 시도...');
       
       // Popup 방식 로그인 시도
       const result = await signInWithPopup(auth, googleProvider);
       
+      console.log('🔐 Google 로그인 성공:', {
+        uid: result.user.uid,
+        email: result.user.email,
+        displayName: result.user.displayName
+      });
+      
       if (result && result.user) {
         // 로그인 성공 - 사용자 프로필 생성/업데이트
+        console.log('🔐 사용자 프로필 생성/업데이트 시작...');
         const profile = await createOrUpdateUserProfile(result.user, role);
+        console.log('🔐 사용자 프로필 생성/업데이트 완료:', profile);
+        
         setUser(result.user);
         setUserProfile(profile);
       }
       
     } catch (error) {
-      console.error('Google 로그인 오류:', error);
+      console.error('❌ Google 로그인 오류:', error);
       
-      // 간단한 오류 메시지
+      // 상세한 오류 메시지
       let errorMessage = '로그인 중 오류가 발생했습니다.';
       
       if (error && typeof error === 'object' && 'code' in error) {
-        const authError = error as { code: string };
+        const authError = error as { code: string; message?: string };
+        
+        console.error('❌ Firebase Auth 오류 코드:', authError.code);
+        console.error('❌ Firebase Auth 오류 메시지:', authError.message);
         
         if (authError.code === 'auth/network-request-failed') {
           errorMessage = '네트워크 연결을 확인해주세요.';
         } else if (authError.code === 'auth/cancelled-popup-request') {
           errorMessage = '로그인이 취소되었습니다. 다시 시도해주세요.';
+        } else if (authError.code === 'auth/popup-blocked') {
+          errorMessage = '팝업이 차단되었습니다. 브라우저 설정을 확인해주세요.';
+        } else if (authError.code === 'auth/popup-closed-by-user') {
+          errorMessage = '로그인 창이 닫혔습니다. 다시 시도해주세요.';
+        } else if (authError.code.includes('cors')) {
+          errorMessage = 'CORS 오류가 발생했습니다. 관리자에게 문의해주세요.';
         }
       }
       
@@ -191,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               displayName: data.displayName || firebaseUser.displayName,
               photoURL: data.photoURL || firebaseUser.photoURL,
               role: data.role || 'student',
-              schoolInfo: data.schoolInfo || undefined,
+              schoolInfo: data.schoolInfo || null,
               createdAt: data.createdAt?.toDate() || new Date(),
               lastLoginAt: data.lastLoginAt?.toDate() || new Date()
             };

@@ -83,7 +83,10 @@ try {
     
     // Configure Google Provider
     googleProvider = new GoogleAuthProvider();
-    googleProvider.setCustomParameters({ prompt: 'select_account' });
+    googleProvider.setCustomParameters({ 
+      prompt: 'select_account',
+      hd: '', // 도메인 제한 없음
+    });
     googleProvider.addScope('profile');
     googleProvider.addScope('email');
     
