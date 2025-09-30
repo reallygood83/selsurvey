@@ -93,6 +93,7 @@ export interface ClassInfo {
   schoolName: string;
   grade: Grade;
   className: string;
+  year: number; // 학년도 (예: 2025)
   studentCount: number;
   students: string[]; // 학생 ID 배열
   createdAt: Date;

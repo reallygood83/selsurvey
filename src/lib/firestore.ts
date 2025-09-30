@@ -183,6 +183,107 @@ export const classService = {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  },
+
+  // 반 정보 업데이트
+  async updateClass(classId: string, updates: Partial<ClassInfo>): Promise<void> {
+    const classRef = doc(db, COLLECTIONS.CLASSES, classId);
+    const processedUpdates = { ...updates } as Record<string, unknown>;
+
+    // Date 필드를 Timestamp로 변환
+    if (processedUpdates.createdAt) {
+      processedUpdates.createdAt = toTimestamp(processedUpdates.createdAt as Date);
+    }
+
+    await updateDoc(classRef, processedUpdates);
+  },
+
+  // 반 삭제
+  async deleteClass(classId: string): Promise<void> {
+    const batch = writeBatch(db);
+
+    try {
+      // 1. 반에 속한 학생들의 classCode 제거
+      const studentsRef = collection(db, COLLECTIONS.STUDENTS);
+      const classRef = doc(db, COLLECTIONS.CLASSES, classId);
+      const classDoc = await getDoc(classRef);
+
+      if (classDoc.exists()) {
+        const classData = classDoc.data();
+        const students = classData.students || [];
+
+        // 학생들의 classCode 필드 제거
+        for (const studentId of students) {
+          const studentRef = doc(db, COLLECTIONS.STUDENTS, studentId);
+          batch.update(studentRef, {
+            classCode: '',
+            teacherId: '',
+            isActive: false
+          });
+        }
+      }
+
+      // 2. 반 문서 삭제
+      batch.delete(classRef);
+
+      await batch.commit();
+      console.log(`반 ${classId}가 성공적으로 삭제되었습니다.`);
+    } catch (error) {
+      console.error('반 삭제 중 오류:', error);
+      throw new Error('반 삭제에 실패했습니다.');
+    }
+  },
+
+  // 활성 반 전환 (한 교사당 하나의 활성 반만 가능)
+  async switchActiveClass(teacherId: string, newActiveClassId: string): Promise<void> {
+    const batch = writeBatch(db);
+
+    try {
+      // 1. 해당 교사의 모든 반 조회
+      const classRef = collection(db, COLLECTIONS.CLASSES);
+      const q = query(classRef, where('teacherId', '==', teacherId));
+      const snapshot = await getDocs(q);
+
+      // 2. 모든 반의 isActive를 false로 설정
+      snapshot.docs.forEach(doc => {
+        batch.update(doc.ref, { isActive: false });
+      });
+
+      // 3. 선택한 반만 isActive를 true로 설정
+      const newActiveClassRef = doc(db, COLLECTIONS.CLASSES, newActiveClassId);
+      batch.update(newActiveClassRef, { isActive: true });
+
+      await batch.commit();
+      console.log(`반 ${newActiveClassId}가 활성 반으로 전환되었습니다.`);
+    } catch (error) {
+      console.error('활성 반 전환 중 오류:', error);
+      throw new Error('활성 반 전환에 실패했습니다.');
+    }
+  },
+
+  // 교사의 활성 반 조회
+  async getActiveClass(teacherId: string): Promise<ClassInfo | null> {
+    const classRef = collection(db, COLLECTIONS.CLASSES);
+    const q = query(
+      classRef,
+      where('teacherId', '==', teacherId),
+      where('isActive', '==', true),
+      limit(1)
+    );
+
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      const doc = snapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: fromTimestamp(data.createdAt)
+      } as ClassInfo;
+    }
+
+    return null;
   }
 };
 

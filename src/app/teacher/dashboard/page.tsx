@@ -402,13 +402,14 @@ export default function TeacherDashboardPage() {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="relative flex flex-col w-64 bg-white">
           <div className="flex items-center justify-between h-16 px-6 bg-white border-b">
-            <Image
-              src="/icons/mindlog-logo.svg"
-              alt="MindLog"
-              width={140}
-              height={32}
-              priority
-            />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-xl">💚</span>
+              </div>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+                MindLog
+              </h1>
+            </div>
             <button
               className="text-gray-600 hover:text-gray-900"
               onClick={() => setSidebarOpen(false)}
@@ -450,13 +451,14 @@ export default function TeacherDashboardPage() {
       <div className="hidden lg:flex lg:fixed lg:inset-y-0 lg:w-64 lg:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r">
           <div className="flex items-center h-16 px-6 bg-white border-b">
-            <Image
-              src="/icons/mindlog-logo.svg"
-              alt="MindLog"
-              width={140}
-              height={32}
-              priority
-            />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-xl">💚</span>
+              </div>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+                MindLog
+              </h1>
+            </div>
           </div>
           <nav className="flex-1 px-4 py-6 space-y-1">
             {navigation.map((item) => {
