@@ -27,27 +27,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Firestore 쿼리 구성
+    // Firestore 쿼리 구성 - 복합 인덱스 문제 해결
     const queryRef = collection(db, 'aiReports');
-    const queryConstraints = [];
 
-    // 조건별 필터 추가
-    if (teacherId) {
-      queryConstraints.push(where('teacherId', '==', teacherId));
-    }
-    if (studentId) {
-      queryConstraints.push(where('studentId', '==', studentId));
-    }
-    if (classCode) {
-      queryConstraints.push(where('classCode', '==', classCode));
-    }
+    // 조건이 1개만 있을 때는 단순 쿼리 (인덱스 불필요)
+    const conditionCount = [teacherId, studentId, classCode].filter(Boolean).length;
 
-    // Firestore 복합 인덱스 문제 해결을 위해 정렬은 클라이언트에서 수행
-    // queryConstraints.push(orderBy('generatedAt', 'desc'));
-    queryConstraints.push(limit(limitCount * 2)); // 여유있게 가져와서 클라이언트에서 정렬 후 제한
+    let querySnapshot;
 
-    const q = query(queryRef, ...queryConstraints);
-    const querySnapshot = await getDocs(q);
+    if (conditionCount === 1) {
+      // 단일 조건 - 인덱스 불필요
+      const queryConstraints = [];
+      if (teacherId) queryConstraints.push(where('teacherId', '==', teacherId));
+      if (studentId) queryConstraints.push(where('studentId', '==', studentId));
+      if (classCode) queryConstraints.push(where('classCode', '==', classCode));
+
+      const q = query(queryRef, ...queryConstraints);
+      querySnapshot = await getDocs(q);
+    } else {
+      // 복합 조건 - 전체 컬렉션 가져와서 클라이언트에서 필터링
+      querySnapshot = await getDocs(queryRef);
+    }
 
     // 결과 데이터 변환
     const reports: AIReport[] = [];
@@ -60,9 +60,20 @@ export async function GET(request: NextRequest) {
       } as AIReport);
     });
 
-    // 클라이언트 측 정렬 및 제한 (Firestore 복합 인덱스 불필요)
-    reports.sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime());
-    const limitedReports = reports.slice(0, limitCount);
+    // 클라이언트 측 필터링 (복합 조건일 때)
+    let filteredReports = reports;
+    if (conditionCount > 1) {
+      filteredReports = reports.filter(report => {
+        if (teacherId && report.teacherId !== teacherId) return false;
+        if (studentId && report.studentId !== studentId) return false;
+        if (classCode && report.classCode !== classCode) return false;
+        return true;
+      });
+    }
+
+    // 클라이언트 측 정렬 및 제한
+    filteredReports.sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime());
+    const limitedReports = filteredReports.slice(0, limitCount);
 
     console.log('✅ AI 리포트 목록 조회 완료:', {
       totalReports: limitedReports.length,
