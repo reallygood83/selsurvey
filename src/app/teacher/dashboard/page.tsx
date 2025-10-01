@@ -98,19 +98,40 @@ export default function TeacherDashboardPage() {
       전체_학생수: students.length,
       학생_ID_목록: students.map(s => ({ id: s.id, name: s.name, userId: s.userId }))
     });
-    
+
     // id로 먼저 검색
     let student = students.find(s => s.id === studentId);
-    
+
     // id로 못찾으면 userId로 검색 (Firebase Auth UID)
     if (!student) {
       student = students.find(s => s.userId === studentId);
       console.log('🔄 [getStudentName] userId로 재검색 결과:', student ? `찾음: ${student.name}` : '못찾음');
     }
-    
+
     const result = student?.name || '알 수 없음';
     console.log('✅ [getStudentName] 최종 결과:', result, student ? `(${student.id})` : '(매칭 실패)');
     return result;
+  };
+
+  // 응답값을 표시 가능한 형태로 변환 (객체 처리 추가 - React Error #31 수정)
+  const formatAnswer = (answer: any): string => {
+    // 문자열이나 숫자는 그대로 변환
+    if (typeof answer === 'string') return answer;
+    if (typeof answer === 'number') return String(answer);
+
+    // 배열은 각 요소를 재귀적으로 변환 후 결합
+    if (Array.isArray(answer)) {
+      return answer.map(item => formatAnswer(item)).join(', ');
+    }
+
+    // 객체는 text 속성 추출 (multiple-choice 응답 처리)
+    if (answer && typeof answer === 'object') {
+      if ('text' in answer) return String(answer.text);
+      if ('value' in answer) return String(answer.value);
+    }
+
+    // 최후 수단: 문자열로 변환
+    return String(answer);
   };
 
   // 질문 내용을 가져오는 함수
@@ -1199,9 +1220,7 @@ export default function TeacherDashboardPage() {
                       <div className="bg-blue-50 p-3 rounded-lg">
                         <span className="text-sm font-medium text-blue-700">응답:</span>
                         <div className="text-blue-900 mt-1 font-medium">
-                          {Array.isArray(response.answer) 
-                            ? response.answer.join(', ')
-                            : response.answer}
+                          {formatAnswer(response.answer)}
                         </div>
                       </div>
                     </div>
