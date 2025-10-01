@@ -13,6 +13,9 @@ interface StudentReportRequest {
   startDate: string;
   endDate: string;
   reportType: 'individual' | 'summary';
+  // 새로운 응답 선택 모드
+  responseSelectionMode?: 'single' | 'range' | 'all';
+  responseId?: string; // single 모드일 때 사용
 }
 
 interface SELAnalysis {
@@ -167,14 +170,24 @@ ${JSON.stringify(analysisData, null, 2)}
 
 export async function POST(request: NextRequest) {
   try {
-    const { studentId, classCode, startDate, endDate, reportType }: StudentReportRequest = await request.json();
+    const {
+      studentId,
+      classCode,
+      startDate,
+      endDate,
+      reportType,
+      responseSelectionMode = 'all',  // 기본값: 전체 응답
+      responseId
+    }: StudentReportRequest = await request.json();
 
     console.log('🔍 [Student Report] 리포트 생성 요청:', {
       studentId,
       classCode,
       startDate,
       endDate,
-      reportType
+      reportType,
+      responseSelectionMode,
+      responseId: responseId ? `${responseId.substring(0, 8)}...` : 'N/A'
     });
 
     // 날짜 범위 설정
@@ -193,14 +206,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 해당 기간의 설문 응답 조회
-    const allResponses = await surveyService.getResponsesByClass(classCode, start, end);
-    const studentResponses = allResponses.filter(response => 
-      response.studentId === studentId || response.studentId === student.userId
-    );
+    // 응답 선택 모드에 따라 데이터 필터링
+    let studentResponses: SurveyResponse[] = [];
 
-    console.log('📊 [Student Report] 응답 데이터:', {
-      totalClassResponses: allResponses.length,
+    if (responseSelectionMode === 'single' && responseId) {
+      // 1개 응답 모드: 특정 응답만 가져오기
+      const allResponses = await surveyService.getResponsesByClass(classCode);
+      const specificResponse = allResponses.find(r => r.id === responseId);
+
+      if (!specificResponse) {
+        return NextResponse.json(
+          { error: '선택한 응답을 찾을 수 없습니다.' },
+          { status: 404 }
+        );
+      }
+
+      studentResponses = [specificResponse];
+      console.log('📊 [Student Report] 1개 응답 모드:', {
+        responseId,
+        submittedAt: specificResponse.submittedAt
+      });
+
+    } else if (responseSelectionMode === 'range') {
+      // 기간 설정 모드: 날짜 범위 내 응답
+      const allResponses = await surveyService.getResponsesByClass(classCode, start, end);
+      studentResponses = allResponses.filter(response =>
+        response.studentId === studentId || response.studentId === student.userId
+      );
+      console.log('📊 [Student Report] 기간 설정 모드:', {
+        startDate,
+        endDate,
+        responsesFound: studentResponses.length
+      });
+
+    } else {
+      // 전체 모드: 모든 응답
+      const allResponses = await surveyService.getResponsesByClass(classCode);
+      studentResponses = allResponses.filter(response =>
+        response.studentId === studentId || response.studentId === student.userId
+      );
+      console.log('📊 [Student Report] 전체 응답 모드:', {
+        totalResponses: studentResponses.length
+      });
+    }
+
+    console.log('📊 [Student Report] 응답 데이터 최종:', {
+      mode: responseSelectionMode,
       studentResponses: studentResponses.length
     });
 
