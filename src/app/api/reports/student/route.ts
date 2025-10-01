@@ -17,6 +17,12 @@ interface StudentReportRequest {
   responseId?: string; // single 모드일 때 사용
   // 프론트엔드에서 이미 가져온 응답 데이터 (권한 문제 해결)
   responses?: SurveyResponse[];
+  // 학생 정보 (프론트엔드에서 전달)
+  studentInfo?: {
+    name: string;
+    grade: string;
+    studentNumber?: string;
+  };
   // Gemini API Key (사용자가 설정한 키)
   geminiApiKey: string;
 }
@@ -194,6 +200,7 @@ export async function POST(request: NextRequest) {
       responseSelectionMode = 'all',  // 기본값: 전체 응답
       responseId,
       responses,  // 프론트엔드에서 전달받은 응답 데이터
+      studentInfo,  // 프론트엔드에서 전달받은 학생 정보
       geminiApiKey  // 사용자가 설정한 Gemini API 키
     }: StudentReportRequest = await request.json();
 
@@ -222,11 +229,12 @@ export async function POST(request: NextRequest) {
       console.log('✅ [Student Report] 프론트엔드에서 전달받은 응답 데이터 사용:', responses.length);
       studentResponses = responses;
 
-      // 학생 정보는 응답 데이터에서 추출
+      // 학생 정보는 프론트엔드에서 전달받은 정보 사용
       student = {
         id: studentId,
-        name: responses[0].studentName || '알 수 없음',
-        grade: '미정',
+        name: studentInfo?.name || '알 수 없음',
+        grade: studentInfo?.grade || '미정',
+        studentNumber: studentInfo?.studentNumber,
         classCode: classCode
       } as StudentProfile;
     } else {

@@ -273,6 +273,9 @@ export default function TeacherDashboardPage() {
         });
       }
 
+      // 선택된 학생 정보 찾기
+      const selectedStudent = students.find(s => s.id === selectedStudentForReport);
+
       const requestBody = reportType === 'student'
         ? {
             studentId: selectedStudentForReport,
@@ -285,6 +288,12 @@ export default function TeacherDashboardPage() {
             ...(responseSelectionMode === 'single' && { responseId: selectedResponseId }),
             // 프론트엔드에서 가져온 응답 데이터 전달 (권한 문제 해결)
             responses: selectedResponses,
+            // 학생 정보 전달 (이름 표시용)
+            studentInfo: selectedStudent ? {
+              name: selectedStudent.name,
+              grade: selectedStudent.grade,
+              studentNumber: selectedStudent.studentNumber
+            } : undefined,
             // Gemini API 키 전달
             geminiApiKey
           }
@@ -1767,13 +1776,170 @@ export default function TeacherDashboardPage() {
                     </Button>
                     <Button
                       onClick={() => {
-                        // TODO: PDF 다운로드 기능 구현
-                        alert('PDF 다운로드 기능은 곧 추가될 예정입니다.');
+                        if (!generatedReport) return;
+
+                        // HTML 콘텐츠 생성
+                        const studentName = generatedReport.student?.name || '알 수 없음';
+                        const htmlContent = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${studentName} SEL 분석 리포트</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      line-height: 1.6;
+      color: #1f2937;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      margin: 0 0 10px 0;
+      font-size: 32px;
+    }
+    .header p {
+      margin: 5px 0;
+      opacity: 0.95;
+    }
+    .section {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 20px;
+    }
+    .section h2 {
+      color: #6366f1;
+      margin-top: 0;
+      font-size: 24px;
+      border-bottom: 2px solid #6366f1;
+      padding-bottom: 10px;
+    }
+    .section h3 {
+      color: #4b5563;
+      font-size: 18px;
+      margin-top: 20px;
+    }
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .score-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .score-card .score {
+      font-size: 48px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    .score-card .label {
+      font-size: 14px;
+      opacity: 0.95;
+    }
+    .insights-list {
+      list-style: none;
+      padding: 0;
+    }
+    .insights-list li {
+      padding: 12px 20px;
+      margin: 8px 0;
+      background: #f3f4f6;
+      border-left: 4px solid #6366f1;
+      border-radius: 4px;
+    }
+    .concerns-list li {
+      border-left-color: #f59e0b;
+      background: #fef3c7;
+    }
+    @media print {
+      body { padding: 20px; }
+      .section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${studentName} SEL 분석 리포트</h1>
+    <p>분석 기간: ${generatedReport.period?.start} ~ ${generatedReport.period?.end}</p>
+    <p>응답 수: ${generatedReport.responseCount}개</p>
+    <p>생성 일시: ${new Date(generatedReport.generatedAt).toLocaleString('ko-KR')}</p>
+  </div>
+
+  ${reportType === 'student' && generatedReport.analysis ? `
+  <div class="section">
+    <h2>📊 SEL 5개 영역 점수</h2>
+    <div class="score-grid">
+      ${Object.entries(generatedReport.analysis).slice(0, 5).map(([domain, data]: [string, any]) => `
+        <div class="score-card">
+          <div class="label">${domain === 'selfAwareness' ? '자기인식' : domain === 'selfManagement' ? '자기관리' : domain === 'socialAwareness' ? '사회인식' : domain === 'relationshipSkills' ? '관계기술' : '책임의식'}</div>
+          <div class="score">${data.score}</div>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>💡 주요 인사이트</h2>
+    <ul class="insights-list">
+      ${generatedReport.analysis.overallInsights?.map((insight: string) => `<li>${insight}</li>`).join('') || '<li>인사이트가 없습니다.</li>'}
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>📋 지도 권장사항</h2>
+    <ul class="insights-list">
+      ${generatedReport.analysis.recommendations?.map((rec: string) => `<li>${rec}</li>`).join('') || '<li>권장사항이 없습니다.</li>'}
+    </ul>
+  </div>
+
+  ${generatedReport.analysis.concerns?.length > 0 ? `
+  <div class="section">
+    <h2>⚠️ 관심 영역</h2>
+    <ul class="insights-list concerns-list">
+      ${generatedReport.analysis.concerns.map((concern: string) => `<li>${concern}</li>`).join('')}
+    </ul>
+  </div>
+  ` : ''}
+  ` : ''}
+
+  <div class="section">
+    <p style="text-align: center; color: #6b7280; margin-top: 40px;">
+      <small>MindLog - SEL 감정분석 플랫폼<br>생성 일시: ${new Date().toLocaleString('ko-KR')}</small>
+    </p>
+  </div>
+</body>
+</html>`;
+
+                        // HTML 파일 다운로드
+                        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `${studentName}_SEL리포트_${new Date().toISOString().split('T')[0]}.html`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
                       }}
                       className="bg-purple-600 hover:bg-purple-700"
                     >
                       <Download className="w-4 h-4 mr-2" />
-                      PDF 다운로드
+                      HTML 다운로드
                     </Button>
                   </div>
                 </div>
