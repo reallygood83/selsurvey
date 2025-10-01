@@ -275,13 +275,13 @@ export default function StudentResponseDetail({ responses, className = '' }: Stu
                                 <span>1점: {questionDetails.scaleLabels.min}</span>
                                 <span>5점: {questionDetails.scaleLabels.max}</span>
                               </div>
-                              <Progress 
-                                value={(resp.answer / 5) * 100} 
+                              <Progress
+                                value={(Number(resp.answer) / 5) * 100}
                                 className="h-3"
                               />
                               <div className="text-center mt-1">
                                 <span className="text-xs font-medium text-gray-600">
-                                  {resp.answer}/5점
+                                  {Number(resp.answer)}/5점
                                 </span>
                               </div>
                             </div>
