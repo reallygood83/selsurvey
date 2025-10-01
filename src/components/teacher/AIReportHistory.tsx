@@ -296,7 +296,7 @@ ${report.nextSteps?.map(item => `• ${item}`).join('\n') || ''}
                     {/* 개인화된 리포트인 경우 고유 특성 미리보기 */}
                     {report.isPersonalized && report.uniqueProfile && (
                       <div className="mt-2 p-2 bg-purple-50 rounded text-xs text-purple-800 border border-purple-200">
-                        <strong>고유 특성:</strong> {report.uniqueProfile.substring(0, 80)}...
+                        <strong>고유 특성:</strong> {String(report.uniqueProfile).substring(0, 80)}...
                       </div>
                     )}
                   </div>
