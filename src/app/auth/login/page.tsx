@@ -21,7 +21,7 @@ import {
 type UserRole = 'teacher' | 'student' | null;
 
 export default function LoginPage() {
-  const { signInWithGoogle, loading, error, clearError } = useAuth();
+  const { signInWithGoogle, loading, error, clearError, refreshProfile } = useAuth();
   const [selectedRole, setSelectedRole] = useState<UserRole>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const router = useRouter();
@@ -38,19 +38,61 @@ export default function LoginPage() {
     setIsAuthenticating(true);
 
     try {
+      console.log('🔐 [LoginPage] 로그인 시작:', { role });
       await signInWithGoogle(role);
+
+      console.log('✅ [LoginPage] 로그인 완료, 프로필 새로고침 중...');
+
+      // ✅ 중요: 로그인 직후 최신 프로필 정보를 가져옴
+      await refreshProfile();
+
+      console.log('✅ [LoginPage] 프로필 새로고침 완료');
+
       // 교사 로그인 성공 후 리다이렉트
       if (role === 'teacher') {
-        // 최초 로그인(schoolInfo 없음) → 온보딩 페이지
-        // 기존 교사(schoolInfo 있음) → 대시보드
-        // 온보딩 페이지에서 schoolInfo 체크하도록 일단 온보딩으로 보냄
-        router.push('/teacher/onboarding');
+        // ✅ 프로필에서 classCode 확인
+        // refreshProfile() 완료 후 AuthContext의 userProfile이 업데이트됨
+        // 하지만 React state 업데이트는 비동기이므로 직접 Firestore에서 확인
+        const { getDoc, doc } = await import('firebase/firestore');
+        const { db } = await import('@/lib/firebase');
+        const { auth } = await import('@/lib/firebase');
+
+        const currentUser = auth?.currentUser;
+        if (!currentUser) {
+          throw new Error('사용자 정보를 찾을 수 없습니다.');
+        }
+
+        const userRef = doc(db!, 'users', currentUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const hasClassCode = userData?.schoolInfo?.classCode;
+
+          console.log('🔍 [LoginPage] 학급 정보 확인:', {
+            hasClassCode: !!hasClassCode,
+            classCode: hasClassCode || '없음'
+          });
+
+          if (hasClassCode) {
+            console.log('✅ [LoginPage] 기존 교사 → 대시보드로 이동');
+            router.push('/teacher/dashboard');
+          } else {
+            console.log('🆕 [LoginPage] 신규 교사 → 온보딩으로 이동');
+            router.push('/teacher/onboarding');
+          }
+        } else {
+          // Firestore 문서가 없는 경우 (비정상 상황)
+          console.warn('⚠️ [LoginPage] 사용자 문서 없음 → 온보딩으로 이동');
+          router.push('/teacher/onboarding');
+        }
       } else {
         // 학생은 대시보드로
+        console.log('✅ [LoginPage] 학생 → 대시보드로 이동');
         router.push('/student/dashboard');
       }
     } catch (error) {
-      console.error('로그인 오류:', error);
+      console.error('❌ [LoginPage] 로그인 오류:', error);
     } finally {
       setIsAuthenticating(false);
     }
