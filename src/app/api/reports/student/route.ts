@@ -63,15 +63,22 @@ async function generateSELAnalysis(
   }
 
   // 응답 데이터를 분석용 텍스트로 변환
-  const analysisData = responses.map(response => ({
-    date: response.submittedAt.toISOString().split('T')[0],
-    type: response.surveyType,
-    responses: response.responses.map(r => ({
-      domain: r.domain,
-      question: r.questionId,
-      answer: r.answer
-    }))
-  }));
+  const analysisData = responses.map(response => {
+    // submittedAt이 문자열이면 Date로 변환
+    const submittedDate = typeof response.submittedAt === 'string'
+      ? new Date(response.submittedAt)
+      : response.submittedAt;
+
+    return {
+      date: submittedDate.toISOString().split('T')[0],
+      type: response.surveyType,
+      responses: response.responses.map(r => ({
+        domain: r.domain,
+        question: r.questionId,
+        answer: r.answer
+      }))
+    };
+  });
 
   const prompt = `당신은 SEL(Social-Emotional Learning) 전문 상담 교사입니다. 다음 학생의 설문 응답 데이터를 분석하여 종합적인 SEL 리포트를 작성해주세요.
 
