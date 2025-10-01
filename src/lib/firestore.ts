@@ -1097,66 +1097,68 @@ export const moodService = {
       .sort((a, b) => b.date.localeCompare(a.date)); // 내림차순 정렬
   },
 
-  // 반의 오늘 무드 조회 (교사용)
+  // 반의 오늘 무드 조회 (교사용) - 오늘 데이터 없으면 최근 24시간 fallback
   async getClassTodayMoods(classCode: string): Promise<DailyMood[]> {
     console.log('🏫 [moodService] getClassTodayMoods 호출됨, classCode:', classCode);
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    console.log('🏫 [moodService] 조회할 날짜:', today);
-    
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    console.log('🏫 [moodService] 조회할 날짜:', today, '(fallback:', yesterday, ')');
+
     // 먼저 해당 반의 학생들을 조회
     const students = await studentService.getStudentsByClass(classCode);
     const userIds = students.map(s => s.userId); // studentId 대신 userId 사용
-    
+
     console.log('🏫 [moodService] 반의 학생 수:', students.length);
     console.log('🏫 [moodService] 학생 UserIDs (Firebase Auth UIDs):', userIds);
-    
+
     if (userIds.length === 0) {
       console.log('⚠️ [moodService] 반에 학생이 없음');
       return [];
     }
-    
+
     const moodRef = collection(db, COLLECTIONS.DAILY_MOODS);
     const allMoods: DailyMood[] = [];
-    
+
     console.log('🏫 [moodService] 전체 무드 문서 수 확인 중...');
     const allDocsQuery = query(moodRef);
     const allDocsSnapshot = await getDocs(allDocsQuery);
     console.log('🏫 [moodService] 전체 무드 문서 수:', allDocsSnapshot.size);
-    
+
     if (allDocsSnapshot.size > 0) {
       console.log('🏫 [moodService] 일부 무드 문서 데이터 샘플:');
       allDocsSnapshot.docs.slice(0, 3).forEach((doc, index) => {
         console.log(`  문서 ${index + 1}:`, { id: doc.id, data: doc.data() });
       });
     }
-    
+
     // Firestore 'in' 쿼리는 최대 10개까지이므로 배치로 처리
     for (let i = 0; i < userIds.length; i += 10) {
       const batch = userIds.slice(i, i + 10);
       console.log(`🏫 [moodService] 배치 ${Math.floor(i/10) + 1} 처리 중, 학생 UserIDs:`, batch);
-      
+
       const q = query(
         moodRef,
         where('studentId', 'in', batch)
       );
-      
+
       const snapshot = await getDocs(q);
       console.log(`🏫 [moodService] 배치 ${Math.floor(i/10) + 1} 쿼리 결과:`, snapshot.size, '개 문서');
-      
+
       snapshot.docs.forEach((doc, index) => {
         const data = doc.data();
-        console.log(`  배치 문서 ${index + 1}:`, { 
-          id: doc.id, 
-          studentId: data.studentId, 
+        console.log(`  배치 문서 ${index + 1}:`, {
+          id: doc.id,
+          studentId: data.studentId,
           date: data.date,
-          emotion: data.emotion 
+          emotion: data.emotion
         });
       });
-      
-      const batchMoods = snapshot.docs
+
+      // ✅ 1단계: 오늘 데이터 먼저 확인
+      const todayMoods = snapshot.docs
         .filter(doc => {
           const isToday = doc.data().date === today;
-          console.log(`    날짜 필터링: ${doc.data().date} === ${today} = ${isToday}`);
+          console.log(`    날짜 필터링 (오늘): ${doc.data().date} === ${today} = ${isToday}`);
           return isToday;
         })
         .map(doc => {
@@ -1167,12 +1169,35 @@ export const moodService = {
             submittedAt: fromTimestamp(data.submittedAt)
           } as DailyMood;
         });
-      
-      console.log(`🏫 [moodService] 배치 ${Math.floor(i/10) + 1} 오늘 무드:`, batchMoods.length, '개');
-      allMoods.push(...batchMoods);
+
+      console.log(`🏫 [moodService] 배치 ${Math.floor(i/10) + 1} 오늘 무드:`, todayMoods.length, '개');
+
+      // ✅ 2단계: 오늘 데이터 없으면 어제 데이터 fallback
+      if (todayMoods.length === 0) {
+        console.log(`⏰ [moodService] 오늘 데이터 없음 → 어제(${yesterday}) 데이터로 fallback`);
+        const yesterdayMoods = snapshot.docs
+          .filter(doc => {
+            const isYesterday = doc.data().date === yesterday;
+            console.log(`    날짜 필터링 (어제): ${doc.data().date} === ${yesterday} = ${isYesterday}`);
+            return isYesterday;
+          })
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              submittedAt: fromTimestamp(data.submittedAt)
+            } as DailyMood;
+          });
+
+        console.log(`🏫 [moodService] 배치 ${Math.floor(i/10) + 1} 어제 무드 (fallback):`, yesterdayMoods.length, '개');
+        allMoods.push(...yesterdayMoods);
+      } else {
+        allMoods.push(...todayMoods);
+      }
     }
-    
-    console.log('🏫 [moodService] 최종 결과: 총', allMoods.length, '개의 오늘 무드');
+
+    console.log('🏫 [moodService] 최종 결과: 총', allMoods.length, '개의 무드 (오늘 또는 최근 24시간)');
     allMoods.forEach((mood, index) => {
       console.log(`  무드 ${index + 1}:`, {
         studentId: mood.studentId,

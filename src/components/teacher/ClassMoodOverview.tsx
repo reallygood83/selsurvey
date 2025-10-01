@@ -66,7 +66,7 @@ export function ClassMoodOverview({ classCode }: ClassMoodOverviewProps) {
       
       console.log('✅ [ClassMoodOverview] 데이터 로드 완료');
     } catch (error) {
-      console.error('❌ [ClassMoodOverview] 오늘의 학급 감정 데이터 로드 오류:', error);
+      console.error('❌ [ClassMoodOverview] 최근 학급 감정 데이터 로드 오류:', error);
     } finally {
       setLoading(false);
     }
@@ -134,7 +134,7 @@ export function ClassMoodOverview({ classCode }: ClassMoodOverviewProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Heart className="w-5 h-5" />
-            오늘의 학급 감정 현황
+            최근 학급 감정 현황
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -153,10 +153,10 @@ export function ClassMoodOverview({ classCode }: ClassMoodOverviewProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Heart className="w-5 h-5" />
-            오늘의 학급 감정 현황
+            최근 학급 감정 현황
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            {format(new Date(), 'M월 d일 EEEE', { locale: ko })} 기준
+            최신 데이터 기준 (오늘 또는 최근 24시간)
           </p>
         </CardHeader>
         <CardContent>
