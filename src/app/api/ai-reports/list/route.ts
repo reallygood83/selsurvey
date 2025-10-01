@@ -42,9 +42,9 @@ export async function GET(request: NextRequest) {
       queryConstraints.push(where('classCode', '==', classCode));
     }
 
-    // 정렬 및 제한
-    queryConstraints.push(orderBy('generatedAt', 'desc'));
-    queryConstraints.push(limit(limitCount));
+    // Firestore 복합 인덱스 문제 해결을 위해 정렬은 클라이언트에서 수행
+    // queryConstraints.push(orderBy('generatedAt', 'desc'));
+    queryConstraints.push(limit(limitCount * 2)); // 여유있게 가져와서 클라이언트에서 정렬 후 제한
 
     const q = query(queryRef, ...queryConstraints);
     const querySnapshot = await getDocs(q);
@@ -60,20 +60,24 @@ export async function GET(request: NextRequest) {
       } as AIReport);
     });
 
+    // 클라이언트 측 정렬 및 제한 (Firestore 복합 인덱스 불필요)
+    reports.sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime());
+    const limitedReports = reports.slice(0, limitCount);
+
     console.log('✅ AI 리포트 목록 조회 완료:', {
-      totalReports: reports.length,
-      personalizedCount: reports.filter(r => r.isPersonalized).length,
-      basicCount: reports.filter(r => !r.isPersonalized).length
+      totalReports: limitedReports.length,
+      personalizedCount: limitedReports.filter(r => r.isPersonalized).length,
+      basicCount: limitedReports.filter(r => !r.isPersonalized).length
     });
 
     return NextResponse.json({
       success: true,
-      reports,
-      total: reports.length,
+      reports: limitedReports,
+      total: limitedReports.length,
       filters: { teacherId, studentId, classCode },
       metadata: {
-        personalizedCount: reports.filter(r => r.isPersonalized).length,
-        basicCount: reports.filter(r => !r.isPersonalized).length
+        personalizedCount: limitedReports.filter(r => r.isPersonalized).length,
+        basicCount: limitedReports.filter(r => !r.isPersonalized).length
       }
     });
 
