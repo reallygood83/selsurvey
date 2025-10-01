@@ -233,6 +233,37 @@ export default function TeacherDashboardPage() {
 
     try {
       const endpoint = reportType === 'student' ? '/api/reports/student' : '/api/reports/class';
+
+      // 학생 리포트일 경우 선택된 응답 데이터를 준비
+      let selectedResponses: any[] = [];
+      if (reportType === 'student') {
+        if (responseSelectionMode === 'single' && selectedResponseId) {
+          // 1개 응답 모드: 선택한 응답 1개만
+          const selectedResponse = studentResponses.find(r => r.id === selectedResponseId);
+          if (selectedResponse) {
+            selectedResponses = [selectedResponse];
+          }
+        } else if (responseSelectionMode === 'range') {
+          // 기간 설정 모드: 날짜 범위 내 응답 필터링
+          const startDate = new Date(reportDateRange.startDate);
+          const endDate = new Date(reportDateRange.endDate);
+          endDate.setHours(23, 59, 59, 999);
+          selectedResponses = studentResponses.filter(r => {
+            const responseDate = new Date(r.submittedAt);
+            return responseDate >= startDate && responseDate <= endDate;
+          });
+        } else {
+          // 전체 모드: 모든 응답
+          selectedResponses = studentResponses;
+        }
+
+        console.log('📋 [generateReport] 선택된 응답 데이터:', {
+          mode: responseSelectionMode,
+          count: selectedResponses.length,
+          responseIds: selectedResponses.map(r => r.id?.substring(0, 8))
+        });
+      }
+
       const requestBody = reportType === 'student'
         ? {
             studentId: selectedStudentForReport,
@@ -242,7 +273,9 @@ export default function TeacherDashboardPage() {
             reportType: 'individual',
             // 새로운 응답 선택 모드 파라미터 추가
             responseSelectionMode,
-            ...(responseSelectionMode === 'single' && { responseId: selectedResponseId })
+            ...(responseSelectionMode === 'single' && { responseId: selectedResponseId }),
+            // 프론트엔드에서 가져온 응답 데이터 전달 (권한 문제 해결)
+            responses: selectedResponses
           }
         : {
             classCode: classInfo.classCode,
@@ -254,7 +287,10 @@ export default function TeacherDashboardPage() {
       console.log('🤖 [AI Report] 리포트 생성 요청:', {
         type: reportType,
         endpoint,
-        requestBody
+        requestBody: {
+          ...requestBody,
+          responses: requestBody.responses ? `${requestBody.responses.length}개 응답` : undefined
+        }
       });
 
       const response = await fetch(endpoint, {

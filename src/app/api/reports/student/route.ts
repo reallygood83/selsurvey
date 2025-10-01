@@ -16,6 +16,8 @@ interface StudentReportRequest {
   // 새로운 응답 선택 모드
   responseSelectionMode?: 'single' | 'range' | 'all';
   responseId?: string; // single 모드일 때 사용
+  // 프론트엔드에서 이미 가져온 응답 데이터 (권한 문제 해결)
+  responses?: SurveyResponse[];
 }
 
 interface SELAnalysis {
@@ -177,7 +179,8 @@ export async function POST(request: NextRequest) {
       endDate,
       reportType,
       responseSelectionMode = 'all',  // 기본값: 전체 응답
-      responseId
+      responseId,
+      responses  // 프론트엔드에서 전달받은 응답 데이터
     }: StudentReportRequest = await request.json();
 
     console.log('🔍 [Student Report] 리포트 생성 요청:', {
@@ -187,7 +190,8 @@ export async function POST(request: NextRequest) {
       endDate,
       reportType,
       responseSelectionMode,
-      responseId: responseId ? `${responseId.substring(0, 8)}...` : 'N/A'
+      responseId: responseId ? `${responseId.substring(0, 8)}...` : 'N/A',
+      responsesProvided: responses ? responses.length : 0
     });
 
     // 날짜 범위 설정
@@ -195,67 +199,64 @@ export async function POST(request: NextRequest) {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999); // 해당 날짜 끝까지 포함
 
-    // 학생 정보 조회
-    const students = await studentService.getStudentsByClass(classCode);
-    const student = students.find(s => s.id === studentId || s.userId === studentId);
-
-    if (!student) {
-      return NextResponse.json(
-        { error: '학생을 찾을 수 없습니다.' },
-        { status: 404 }
-      );
-    }
-
-    // 응답 선택 모드에 따라 데이터 필터링
+    // 학생 정보 조회 (클라이언트에서 전달받은 데이터 사용)
+    let student: StudentProfile | undefined;
     let studentResponses: SurveyResponse[] = [];
 
-    if (responseSelectionMode === 'single' && responseId) {
-      // 1개 응답 모드: 특정 응답만 가져오기
-      const allResponses = await surveyService.getResponsesByClass(classCode);
-      const specificResponse = allResponses.find(r => r.id === responseId);
+    // 프론트엔드에서 이미 데이터를 가져왔으면 그것을 사용 (권한 문제 해결)
+    if (responses && responses.length > 0) {
+      console.log('✅ [Student Report] 프론트엔드에서 전달받은 응답 데이터 사용:', responses.length);
+      studentResponses = responses;
 
-      if (!specificResponse) {
+      // 학생 정보는 응답 데이터에서 추출
+      student = {
+        id: studentId,
+        name: responses[0].studentName || '알 수 없음',
+        grade: '미정',
+        classCode: classCode
+      } as StudentProfile;
+    } else {
+      // 서버에서 직접 조회 (이전 방식 - 권한 오류 가능성)
+      const students = await studentService.getStudentsByClass(classCode);
+      student = students.find(s => s.id === studentId || s.userId === studentId);
+
+      if (!student) {
         return NextResponse.json(
-          { error: '선택한 응답을 찾을 수 없습니다.' },
+          { error: '학생을 찾을 수 없습니다.' },
           { status: 404 }
         );
       }
 
-      studentResponses = [specificResponse];
-      console.log('📊 [Student Report] 1개 응답 모드:', {
-        responseId,
-        submittedAt: specificResponse.submittedAt instanceof Date
-          ? specificResponse.submittedAt.toISOString()
-          : String(specificResponse.submittedAt),
-        responseStudentId: specificResponse.studentId
-      });
+      // 응답 선택 모드에 따라 데이터 필터링
+      if (responseSelectionMode === 'single' && responseId) {
+        const allResponses = await surveyService.getResponsesByClass(classCode);
+        const specificResponse = allResponses.find(r => r.id === responseId);
 
-    } else if (responseSelectionMode === 'range') {
-      // 기간 설정 모드: 날짜 범위 내 응답
-      const allResponses = await surveyService.getResponsesByClass(classCode, start, end);
-      studentResponses = allResponses.filter(response =>
-        response.studentId === studentId || response.studentId === student.userId
-      );
-      console.log('📊 [Student Report] 기간 설정 모드:', {
-        startDate,
-        endDate,
-        responsesFound: studentResponses.length
-      });
+        if (!specificResponse) {
+          return NextResponse.json(
+            { error: '선택한 응답을 찾을 수 없습니다.' },
+            { status: 404 }
+          );
+        }
 
-    } else {
-      // 전체 모드: 모든 응답
-      const allResponses = await surveyService.getResponsesByClass(classCode);
-      studentResponses = allResponses.filter(response =>
-        response.studentId === studentId || response.studentId === student.userId
-      );
-      console.log('📊 [Student Report] 전체 응답 모드:', {
-        totalResponses: studentResponses.length
-      });
+        studentResponses = [specificResponse];
+      } else if (responseSelectionMode === 'range') {
+        const allResponses = await surveyService.getResponsesByClass(classCode, start, end);
+        studentResponses = allResponses.filter(response =>
+          response.studentId === studentId || response.studentId === student.userId
+        );
+      } else {
+        const allResponses = await surveyService.getResponsesByClass(classCode);
+        studentResponses = allResponses.filter(response =>
+          response.studentId === studentId || response.studentId === student.userId
+        );
+      }
     }
 
     console.log('📊 [Student Report] 응답 데이터 최종:', {
       mode: responseSelectionMode,
-      studentResponses: studentResponses.length
+      studentResponses: studentResponses.length,
+      studentName: student?.name
     });
 
     if (studentResponses.length === 0) {
