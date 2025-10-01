@@ -1,6 +1,7 @@
-// 강화된 학생 설문 응답 상세 표시 컴포넌트 - 3단계 fallback 매칭 시스템
+// 강화된 학생 설문 응답 상세 표시 컴포넌트 - 4단계 fallback 매칭 시스템 (Firestore 지원)
 'use client';
 
+import React from 'react';
 import { SurveyResponse, SELDomain } from '@/types';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -10,12 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  MessageSquare, 
-  Heart, 
-  Users, 
-  Brain, 
-  Target, 
+import {
+  MessageSquare,
+  Heart,
+  Users,
+  Brain,
+  Target,
   Calendar,
   CheckCircle,
   AlertTriangle,
@@ -68,25 +69,29 @@ const SEL_DOMAIN_CONFIG = {
   }
 };
 
-// 🔥 핵심 개선: 3단계 Fallback 질문 매칭 시스템
+// 🔥 핵심 개선: 4단계 Fallback 질문 매칭 시스템 (Firestore 커스텀 설문 지원)
 interface QuestionMatchResult {
   question: string;
   type: 'scale' | 'multipleChoice' | 'text' | 'emotion';
   options?: string[];
   scaleLabels?: { min: string; max: string };
   subCategory?: string;
-  matchStatus: 'exact' | 'grade-fallback' | 'cross-fallback' | 'not-found';
+  matchStatus: 'exact' | 'grade-fallback' | 'cross-fallback' | 'custom-survey' | 'not-found';
   sourceTemplate: string;
   confidence: number; // 0-100%
 }
 
-const findQuestionWithFallback = (questionId: string, responseGrade: number): QuestionMatchResult => {
-  console.log(`🔍 질문 매칭 시작: ID=${questionId}, 학년=${responseGrade}`);
-  
+const findQuestionWithFallback = async (
+  questionId: string,
+  responseGrade: number,
+  surveyId?: string
+): Promise<QuestionMatchResult> => {
+  console.log(`🔍 질문 매칭 시작: ID=${questionId}, 학년=${responseGrade}, surveyId=${surveyId || 'N/A'}`);
+
   // 1단계: 정확한 학년 템플릿에서 매칭 시도
   const primaryTemplate = responseGrade <= 4 ? selTemplates[0] : selTemplates[1];
   let question = primaryTemplate.questions.find(q => q.id === questionId);
-  
+
   if (question) {
     console.log(`✅ 1단계 매칭 성공: ${primaryTemplate.title}`);
     return {
@@ -104,7 +109,7 @@ const findQuestionWithFallback = (questionId: string, responseGrade: number): Qu
   // 2단계: 다른 학년 템플릿에서 매칭 시도
   const secondaryTemplate = responseGrade <= 4 ? selTemplates[1] : selTemplates[0];
   question = secondaryTemplate.questions.find(q => q.id === questionId);
-  
+
   if (question) {
     console.log(`⚠️ 2단계 매칭 성공: ${secondaryTemplate.title} (크로스 매칭)`);
     return {
@@ -121,11 +126,11 @@ const findQuestionWithFallback = (questionId: string, responseGrade: number): Qu
 
   // 3단계: 모든 템플릿에서 부분 매칭 시도 (ID 유사성 검사)
   for (const template of selTemplates) {
-    const similarQuestion = template.questions.find(q => 
+    const similarQuestion = template.questions.find(q =>
       q.id.startsWith(questionId.substring(0, 2)) || // 같은 영역 (sa, sm, soa, rs, rdm)
       q.id.includes(questionId.substring(0, 3))      // 더 세밀한 매칭
     );
-    
+
     if (similarQuestion) {
       console.log(`⚠️ 3단계 매칭 성공: ${template.title} (유사 ID: ${similarQuestion.id})`);
       return {
@@ -141,7 +146,43 @@ const findQuestionWithFallback = (questionId: string, responseGrade: number): Qu
     }
   }
 
-  // 4단계: 매칭 실패 - 최소한의 정보 제공
+  // 🔥 4단계: Firestore에서 커스텀 설문 조회 (AI 생성 설문 포함)
+  if (surveyId) {
+    try {
+      console.log(`🔍 4단계 시도 (Firestore 커스텀 설문 조회): surveyId=${surveyId}`);
+      const { surveyService } = await import('@/lib/firestore');
+      const survey = await surveyService.getSurvey(surveyId);
+
+      if (survey && survey.questions) {
+        const customQuestion = survey.questions.find(q => q.id === questionId);
+
+        if (customQuestion) {
+          console.log(`✅ 4단계 성공 (커스텀 설문 매칭):`, {
+            questionId,
+            surveyId,
+            surveyTitle: survey.title,
+            questionText: customQuestion.question
+          });
+          return {
+            question: customQuestion.question,
+            type: customQuestion.type,
+            options: customQuestion.options,
+            scaleLabels: customQuestion.type === 'scale' ? { min: '전혀 그렇지 않다', max: '매우 그렇다' } : undefined,
+            subCategory: undefined,
+            matchStatus: 'custom-survey',
+            sourceTemplate: survey.title || '커스텀 설문',
+            confidence: 90
+          };
+        }
+      }
+
+      console.warn(`⚠️ 4단계 실패: surveyId ${surveyId}에서 questionId ${questionId}를 찾을 수 없음`);
+    } catch (error) {
+      console.error(`❌ 4단계 Firestore 조회 오류:`, error);
+    }
+  }
+
+  // 5단계: 매칭 실패 - 최소한의 정보 제공
   console.log(`❌ 매칭 실패: ${questionId}`);
   return {
     question: `질문 ID: ${questionId} (질문 내용을 찾을 수 없습니다)`,
@@ -162,6 +203,14 @@ const getMatchStatusDisplay = (matchResult: QuestionMatchResult) => {
         bgColor: 'bg-green-100',
         description: '정확 매칭',
         detail: '해당 학년 템플릿에서 발견'
+      };
+    case 'custom-survey':
+      return {
+        icon: CheckCircle,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100',
+        description: '커스텀 설문',
+        detail: 'AI 생성 또는 맞춤 설문에서 발견'
       };
     case 'cross-fallback':
       return {
@@ -220,7 +269,200 @@ const formatAnswer = (answer: string | number | string[]) => {
   return String(answer);
 };
 
+// 🔥 개별 응답 항목 컴포넌트 (비동기 매칭 지원)
+interface ResponseItemProps {
+  resp: {
+    questionId: string;
+    answer: string | number | string[];
+    domain: SELDomain;
+  };
+  responseGrade: number;
+  surveyId?: string;
+}
+
+function ResponseItem({ resp, responseGrade, surveyId }: ResponseItemProps) {
+  const [matchResult, setMatchResult] = React.useState<QuestionMatchResult | null>(null);
+
+  React.useEffect(() => {
+    const fetchMatchResult = async () => {
+      const result = await findQuestionWithFallback(resp.questionId, responseGrade, surveyId);
+      setMatchResult(result);
+    };
+    fetchMatchResult();
+  }, [resp.questionId, responseGrade, surveyId]);
+
+  if (!matchResult) {
+    return (
+      <div className="p-4 rounded-lg border bg-gray-50 border-gray-200 animate-pulse">
+        <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
+        <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+      </div>
+    );
+  }
+
+  const domainConfig = SEL_DOMAIN_CONFIG[resp.domain as keyof typeof SEL_DOMAIN_CONFIG];
+  const interpretation = interpretResponse(resp.answer, resp.domain);
+  const IconComponent = domainConfig.icon;
+  const matchDisplay = getMatchStatusDisplay(matchResult);
+  const MatchIcon = matchDisplay.icon;
+
+  return (
+    <div
+      className={`p-4 rounded-lg border ${domainConfig.bgColor} ${domainConfig.borderColor}`}
+    >
+      {/* 질문 제목과 SEL 영역 */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start space-x-2 flex-1">
+          <IconComponent className={`w-5 h-5 mt-0.5 ${domainConfig.color}`} />
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-1">
+              <span className={`font-medium text-sm ${domainConfig.color}`}>
+                {domainConfig.name}
+              </span>
+              {matchResult.subCategory && (
+                <Badge variant="outline" className="text-xs">
+                  {matchResult.subCategory}
+                </Badge>
+              )}
+            </div>
+
+            {/* 🔥 핵심: 매칭 상태 표시 */}
+            <div className="flex items-center space-x-2 mb-2">
+              <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${matchDisplay.bgColor}`}>
+                <MatchIcon className={`w-3 h-3 ${matchDisplay.color}`} />
+                <span className={matchDisplay.color}>{matchDisplay.description}</span>
+                <span className="text-gray-600">({matchResult.confidence}%)</span>
+              </div>
+              {matchResult.sourceTemplate !== '매칭 실패' && (
+                <span className="text-xs text-gray-500">
+                  출처: {matchResult.sourceTemplate}
+                </span>
+              )}
+            </div>
+
+            {/* 🔥 핵심: 강화된 질문 내용 표시 */}
+            <div className={`text-sm text-gray-700 font-medium mb-2 bg-white/70 p-3 rounded border ${
+              matchResult.matchStatus === 'not-found' ? 'border-red-200 bg-red-50' :
+              matchResult.matchStatus === 'exact' || matchResult.matchStatus === 'custom-survey' ? 'border-green-200' :
+              'border-orange-200'
+            }`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-500 uppercase tracking-wide">질문</span>
+                <Badge
+                  variant={
+                    matchResult.matchStatus === 'exact' || matchResult.matchStatus === 'custom-survey' ? 'default' :
+                    matchResult.matchStatus === 'not-found' ? 'destructive' :
+                    'secondary'
+                  }
+                  className="text-xs"
+                >
+                  ID: {resp.questionId}
+                </Badge>
+              </div>
+              <div className="mt-1">{matchResult.question}</div>
+              {matchResult.matchStatus !== 'exact' && (
+                <div className="mt-2 text-xs text-gray-500 italic">
+                  💡 {matchDisplay.detail}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2 ml-2">
+          <span className="text-lg">{interpretation.emoji}</span>
+          <Badge
+            variant={
+              interpretation.level === 'positive' ? 'default' :
+              interpretation.level === 'negative' ? 'destructive' :
+              'secondary'
+            }
+            className="text-xs"
+          >
+            {interpretation.description}
+          </Badge>
+        </div>
+      </div>
+
+      {/* 응답 내용 */}
+      <div className="mt-3">
+        <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">학생 응답</div>
+        <div className="bg-white p-3 rounded border border-gray-300 shadow-sm">
+          <span className="text-sm font-medium text-gray-900">
+            {formatAnswer(resp.answer)}
+          </span>
+
+          {/* 척도형 응답일 경우 상세 정보 표시 */}
+          {typeof resp.answer === 'number' && matchResult.scaleLabels && (
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                <span>1점: {matchResult.scaleLabels.min}</span>
+                <span>5점: {matchResult.scaleLabels.max}</span>
+              </div>
+              <Progress
+                value={(resp.answer / 5) * 100}
+                className="h-3"
+              />
+              <div className="text-center mt-1">
+                <span className="text-xs font-medium text-gray-600">
+                  {resp.answer}/5점
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* 선택형 응답일 경우 선택지 정보 표시 */}
+          {(matchResult.type === 'multipleChoice' || matchResult.type === 'emotion') && matchResult.options && (
+            <div className="mt-3 pt-2 border-t border-gray-100">
+              <div className="text-xs text-gray-500 mb-2">선택 가능했던 옵션들:</div>
+              <div className="flex flex-wrap gap-1">
+                {matchResult.options.map((option, optionIndex) => (
+                  <Badge
+                    key={optionIndex}
+                    variant={formatAnswer(resp.answer) === option ? "default" : "outline"}
+                    className="text-xs"
+                  >
+                    {option}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentResponseDetailEnhanced({ responses, className = '' }: StudentResponseDetailEnhancedProps) {
+  const [matchingStats, setMatchingStats] = React.useState<Record<string, number>>({});
+  const [isCalculating, setIsCalculating] = React.useState(true);
+
+  // 📊 전체 응답의 매칭 통계 계산 (비동기)
+  React.useEffect(() => {
+    const calculateMatchingStats = async () => {
+      setIsCalculating(true);
+      const stats: Record<string, number> = {};
+
+      for (const response of responses) {
+        for (const resp of response.responses) {
+          const matchResult = await findQuestionWithFallback(
+            resp.questionId,
+            response.grade,
+            response.surveyId // 🔥 핵심: surveyId 전달
+          );
+          stats[matchResult.matchStatus] = (stats[matchResult.matchStatus] || 0) + 1;
+        }
+      }
+
+      setMatchingStats(stats);
+      setIsCalculating(false);
+    };
+
+    if (responses.length > 0) {
+      calculateMatchingStats();
+    }
+  }, [responses]);
+
   if (responses.length === 0) {
     return (
       <Card className={className}>
@@ -234,18 +476,9 @@ export default function StudentResponseDetailEnhanced({ responses, className = '
     );
   }
 
-  // 📊 전체 응답의 매칭 통계 계산
   const totalQuestions = responses.reduce((acc, response) => acc + response.responses.length, 0);
-  const matchingStats = responses.reduce((stats, response) => {
-    response.responses.forEach(resp => {
-      const matchResult = findQuestionWithFallback(resp.questionId, response.grade);
-      stats[matchResult.matchStatus] = (stats[matchResult.matchStatus] || 0) + 1;
-    });
-    return stats;
-  }, {} as Record<string, number>);
-
-  const matchingRate = totalQuestions > 0 ? 
-    ((matchingStats.exact || 0) + (matchingStats['cross-fallback'] || 0)) / totalQuestions * 100 : 0;
+  const matchingRate = totalQuestions > 0 ?
+    ((matchingStats.exact || 0) + (matchingStats['custom-survey'] || 0) + (matchingStats['cross-fallback'] || 0)) / totalQuestions * 100 : 0;
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -253,17 +486,24 @@ export default function StudentResponseDetailEnhanced({ responses, className = '
       <Alert className="border-blue-200 bg-blue-50">
         <Info className="h-4 w-4" />
         <AlertDescription>
-          <div className="flex items-center justify-between">
-            <div>
-              <strong>질문 매칭 분석:</strong> 총 {totalQuestions}개 질문 중 {matchingRate.toFixed(1)}% 매칭 성공
+          {isCalculating ? (
+            <div className="flex items-center justify-center py-2">
+              <span className="text-sm text-gray-600">질문 매칭 계산 중...</span>
             </div>
-            <div className="flex space-x-2 text-xs">
-              <span className="text-green-600">정확: {matchingStats.exact || 0}개</span>
-              <span className="text-orange-600">크로스: {matchingStats['cross-fallback'] || 0}개</span>
-              <span className="text-blue-600">유사: {matchingStats['grade-fallback'] || 0}개</span>
-              <span className="text-red-600">실패: {matchingStats['not-found'] || 0}개</span>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div>
+                <strong>질문 매칭 분석:</strong> 총 {totalQuestions}개 질문 중 {matchingRate.toFixed(1)}% 매칭 성공
+              </div>
+              <div className="flex space-x-2 text-xs">
+                <span className="text-green-600">정확: {matchingStats.exact || 0}개</span>
+                <span className="text-purple-600">커스텀: {matchingStats['custom-survey'] || 0}개</span>
+                <span className="text-orange-600">크로스: {matchingStats['cross-fallback'] || 0}개</span>
+                <span className="text-blue-600">유사: {matchingStats['grade-fallback'] || 0}개</span>
+                <span className="text-red-600">실패: {matchingStats['not-found'] || 0}개</span>
+              </div>
             </div>
-          </div>
+          )}
         </AlertDescription>
       </Alert>
 
@@ -311,15 +551,14 @@ export default function StudentResponseDetailEnhanced({ responses, className = '
 
               {/* SEL 영역별 응답 */}
               <div className="space-y-4">
-                {response.responses.map((resp, respIndex) => {
-                  const domainConfig = SEL_DOMAIN_CONFIG[resp.domain as keyof typeof SEL_DOMAIN_CONFIG];
-                  const interpretation = interpretResponse(resp.answer, resp.domain);
-                  const IconComponent = domainConfig.icon;
-                  
-                  // 🔥 핵심 개선: 강화된 질문 매칭
-                  const matchResult = findQuestionWithFallback(resp.questionId, response.grade);
-                  const matchDisplay = getMatchStatusDisplay(matchResult);
-                  const MatchIcon = matchDisplay.icon;
+                {response.responses.map((resp, respIndex) => (
+                  <ResponseItem
+                    key={respIndex}
+                    resp={resp}
+                    responseGrade={response.grade}
+                    surveyId={response.surveyId}
+                  />
+                ))}
                   
                   return (
                     <div 
