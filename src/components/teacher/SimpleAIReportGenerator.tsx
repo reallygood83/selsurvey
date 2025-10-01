@@ -120,30 +120,67 @@ export default function SimpleAIReportGenerator({
       const aiReport = await response.json();
       console.log('✅ AI 리포트 생성 완료:', aiReport);
 
+      // 🔥 Fix: selInsights가 객체가 아닌 경우 기본값 사용
+      const ensureSelInsights = (insights: any) => {
+        if (!insights || typeof insights !== 'object') {
+          return {
+            selfAwareness: '자기 감정 인식 능력이 발달 중입니다.',
+            selfManagement: '감정 조절 능력을 기르고 있습니다.',
+            socialAwareness: '타인에 대한 이해가 늘어나고 있습니다.',
+            relationshipSkills: '친구와의 관계 형성 능력이 좋습니다.',
+            responsibleDecisionMaking: '책임감 있는 선택을 배워가고 있습니다.'
+          };
+        }
+
+        // 각 필드가 문자열인지 확인하고 아니면 기본값 사용
+        return {
+          selfAwareness: typeof insights.selfAwareness === 'string'
+            ? insights.selfAwareness
+            : '자기 감정 인식 능력이 발달 중입니다.',
+          selfManagement: typeof insights.selfManagement === 'string'
+            ? insights.selfManagement
+            : '감정 조절 능력을 기르고 있습니다.',
+          socialAwareness: typeof insights.socialAwareness === 'string'
+            ? insights.socialAwareness
+            : '타인에 대한 이해가 늘어나고 있습니다.',
+          relationshipSkills: typeof insights.relationshipSkills === 'string'
+            ? insights.relationshipSkills
+            : '친구와의 관계 형성 능력이 좋습니다.',
+          responsibleDecisionMaking: typeof insights.responsibleDecisionMaking === 'string'
+            ? insights.responsibleDecisionMaking
+            : '책임감 있는 선택을 배워가고 있습니다.'
+        };
+      };
+
+      // 🔥 Fix: 배열 필드가 배열인지 확인하고 아니면 기본값 사용
+      const ensureStringArray = (arr: any, defaultValue: string[]) => {
+        if (!Array.isArray(arr)) return defaultValue;
+        return arr.filter(item => typeof item === 'string');
+      };
+
+      // 🔥 Fix: 문자열 필드가 문자열인지 확인
+      const ensureString = (value: any, defaultValue: string) => {
+        return typeof value === 'string' ? value : defaultValue;
+      };
+
       // 리포트 데이터 설정
       setReportData({
-        summary: aiReport.summary || `${surveyTitle} 설문 결과 종합 분석입니다.`,
-        classOverview: aiReport.classOverview || '클래스 전반적인 정서적 상태가 양호합니다.',
-        participationAnalysis: aiReport.participationAnalysis || `총 ${participantCount}명의 학생이 참여했습니다.`,
-        emotionalTrends: aiReport.emotionalTrends || ['전반적으로 긍정적인 감정 상태', '스트레스 수준은 보통 범위'],
-        behaviorPatterns: aiReport.behaviorPatterns || ['학습에 대한 적극적인 참여', '친구관계에서의 협력적 태도'],
-        recommendationsForTeacher: aiReport.recommendationsForTeacher || [
+        summary: ensureString(aiReport.summary, `${surveyTitle} 설문 결과 종합 분석입니다.`),
+        classOverview: ensureString(aiReport.classOverview, '클래스 전반적인 정서적 상태가 양호합니다.'),
+        participationAnalysis: ensureString(aiReport.participationAnalysis, `총 ${participantCount}명의 학생이 참여했습니다.`),
+        emotionalTrends: ensureStringArray(aiReport.emotionalTrends, ['전반적으로 긍정적인 감정 상태', '스트레스 수준은 보통 범위']),
+        behaviorPatterns: ensureStringArray(aiReport.behaviorPatterns, ['학습에 대한 적극적인 참여', '친구관계에서의 협력적 태도']),
+        recommendationsForTeacher: ensureStringArray(aiReport.recommendationsForTeacher, [
           '개별 학생의 감정 상태에 관심 가지기',
           '긍정적인 피드백 증가',
           '스트레스 관리 활동 도입'
-        ],
-        recommendationsForParents: aiReport.recommendationsForParents || [
+        ]),
+        recommendationsForParents: ensureStringArray(aiReport.recommendationsForParents, [
           '가정에서의 대화 시간 늘리기',
           '자녀의 감정 표현 격려하기',
           '학교 생활에 관심 보이기'
-        ],
-        selInsights: aiReport.selInsights || {
-          selfAwareness: '자기 감정 인식 능력이 발달 중입니다.',
-          selfManagement: '감정 조절 능력을 기르고 있습니다.',
-          socialAwareness: '타인에 대한 이해가 늘어나고 있습니다.',
-          relationshipSkills: '친구와의 관계 형성 능력이 좋습니다.',
-          responsibleDecisionMaking: '책임감 있는 선택을 배워가고 있습니다.'
-        },
+        ]),
+        selInsights: ensureSelInsights(aiReport.selInsights),
         dataQuality: {
           totalResponses: responses.length,
           participantCount,
