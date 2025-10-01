@@ -261,11 +261,24 @@ const interpretResponse = (answer: string | number | string[], domain: SELDomain
   return { level: 'neutral', emoji: '😐', description: '응답 있음' };
 };
 
-// 응답값을 표시 가능한 형태로 변환 (기존과 동일)
-const formatAnswer = (answer: string | number | string[]) => {
+// 응답값을 표시 가능한 형태로 변환 (객체 처리 추가 - React Error #31 수정)
+const formatAnswer = (answer: any): string => {
+  // 문자열이나 숫자는 그대로 변환
+  if (typeof answer === 'string') return answer;
+  if (typeof answer === 'number') return String(answer);
+
+  // 배열은 각 요소를 재귀적으로 변환 후 결합
   if (Array.isArray(answer)) {
-    return answer.join(', ');
+    return answer.map(item => formatAnswer(item)).join(', ');
   }
+
+  // 객체는 text 속성 추출 (multiple-choice 응답 처리)
+  if (answer && typeof answer === 'object') {
+    if ('text' in answer) return String(answer.text);
+    if ('value' in answer) return String(answer.value);
+  }
+
+  // 최후 수단: 문자열로 변환
   return String(answer);
 };
 
