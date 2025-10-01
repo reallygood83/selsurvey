@@ -11,6 +11,7 @@ import { moodService } from '@/lib/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { DailyMood, MoodOption } from '@/types';
 import { CalendarDays, Heart, MessageCircle } from 'lucide-react';
+import MoodSuccessModal from './MoodSuccessModal';
 
 export default function MoodMeter() {
   const [selectedMood, setSelectedMood] = useState<MoodOption | null>(null);
@@ -18,7 +19,9 @@ export default function MoodMeter() {
   const [todayMood, setTodayMood] = useState<DailyMood | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingToday, setIsLoadingToday] = useState(true);
-  
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [wasUpdate, setWasUpdate] = useState(false);
+
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -85,27 +88,24 @@ export default function MoodMeter() {
           note: note.trim() || ''
         });
         console.log('✅ [MoodMeter] 기분 업데이트 완료');
-        toast({
-          title: "기분이 업데이트되었습니다! 😊",
-          description: `오늘의 기분: ${selectedMood.emoji} ${selectedMood.emotion}`,
-        });
+        setWasUpdate(true);
       } else {
         // 새로운 기분 저장
         console.log('💾 [MoodMeter] 새 기분 저장 중...');
         const moodId = await moodService.saveDailyMood(moodData);
         console.log('✅ [MoodMeter] 새 기분 저장 완료, ID:', moodId);
-        
+
         setTodayMood({ ...moodData, id: moodId });
-        toast({
-          title: "오늘의 기분이 저장되었습니다! 🎉",
-          description: `${selectedMood.emoji} ${selectedMood.emotion} - ${selectedMood.description}`,
-        });
+        setWasUpdate(false);
       }
 
       // 저장 후 즉시 확인
       console.log('🔍 [MoodMeter] 저장 후 확인 중...');
       const savedMood = await moodService.getTodayMood(user.uid);
       console.log('🔍 [MoodMeter] 저장 후 확인 결과:', savedMood);
+
+      // 🎉 성공 모달 표시
+      setShowSuccessModal(true);
       
     } catch (error) {
       console.error('❌ [MoodMeter] 기분 저장 실패:', error);
@@ -267,7 +267,7 @@ export default function MoodMeter() {
               <p className="text-sm text-gray-500">
                 {note.length}/500자
               </p>
-              <Button 
+              <Button
                 onClick={handleSaveMood}
                 disabled={isLoading}
                 className="bg-blue-500 hover:bg-blue-600"
@@ -284,6 +284,16 @@ export default function MoodMeter() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* 🎉 성공 모달 */}
+      {selectedMood && (
+        <MoodSuccessModal
+          isOpen={showSuccessModal}
+          onClose={() => setShowSuccessModal(false)}
+          mood={selectedMood}
+          isUpdate={wasUpdate}
+        />
       )}
     </div>
   );
