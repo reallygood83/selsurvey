@@ -572,7 +572,12 @@ export default function TeacherDashboardPage() {
               <Menu className="h-6 w-6" />
             </button>
             <h1 className="text-lg font-semibold">교사 대시보드</h1>
-            <div className="w-6" /> {/* Spacer */}
+            <button
+              onClick={() => setReportModalOpen(true)}
+              className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg"
+            >
+              <BarChart3 className="h-5 w-5" />
+            </button>
           </div>
         </div>
 
@@ -593,6 +598,14 @@ export default function TeacherDashboardPage() {
               )}
             </div>
             <div className="hidden sm:flex space-x-3">
+              <Button
+                onClick={() => setReportModalOpen(true)}
+                variant="default"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                AI 리포트 생성
+              </Button>
               <Button asChild>
                 <Link href="/teacher/surveys/create">
                   <Plus className="w-4 h-4 mr-2" />
