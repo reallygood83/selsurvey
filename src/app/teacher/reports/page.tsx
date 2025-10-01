@@ -36,6 +36,7 @@ export default function TeacherReportsPage() {
   const [studentAnalyses, setStudentAnalyses] = useState<SELAnalysis[]>([]);
   const [recentResponses, setRecentResponses] = useState<SurveyResponse[]>([]);
   const [useEnhancedView, setUseEnhancedView] = useState(true); // 📊 Enhanced: 향상된 뷰 사용 여부
+  const [studentSearchQuery, setStudentSearchQuery] = useState(''); // 학생 검색어
 
   useEffect(() => {
     // authLoading이 끝날 때까지 대기
@@ -86,10 +87,12 @@ export default function TeacherReportsPage() {
 
     try {
       const classStudents = await studentService.getStudentsByClass(classInfo.classCode);
-      setStudents(classStudents);
-      
-      if (classStudents.length > 0) {
-        setSelectedStudent(classStudents[0]);
+      // 학생 목록 가나다순 정렬
+      const sortedStudents = classStudents.sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
+      setStudents(sortedStudents);
+
+      if (sortedStudents.length > 0) {
+        setSelectedStudent(sortedStudents[0]);
       }
     } catch (error) {
       console.error('반 데이터 로드 오류:', error);
@@ -241,15 +244,32 @@ export default function TeacherReportsPage() {
                   학생 목록
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="max-h-96 overflow-y-auto">
+              <CardContent className="space-y-3">
+                {/* 학생 검색 박스 */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="학생 이름으로 검색..."
+                    value={studentSearchQuery}
+                    onChange={(e) => setStudentSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+
+                {/* 학생 목록 */}
+                <div className="max-h-80 overflow-y-auto border rounded-lg">
                   {students.length === 0 ? (
                     <div className="p-6 text-center text-muted-foreground">
                       참여한 학생이 없습니다
                     </div>
                   ) : (
                     <div className="divide-y">
-                      {students.map((student) => (
+                      {students
+                        .filter(student =>
+                          student.name.toLowerCase().includes(studentSearchQuery.toLowerCase())
+                        )
+                        .map((student) => (
                         <Button
                           key={student.id}
                           variant="ghost"
