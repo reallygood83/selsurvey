@@ -431,10 +431,10 @@ function ResponseItem({ resp, responseGrade, surveyId }: ResponseItemProps) {
                 {matchResult.options.map((option, optionIndex) => (
                   <Badge
                     key={optionIndex}
-                    variant={formatAnswer(resp.answer) === option ? "default" : "outline"}
+                    variant={formatAnswer(resp.answer) === formatAnswer(option) ? "default" : "outline"}
                     className="text-xs"
                   >
-                    {option}
+                    {formatAnswer(option)}
                   </Badge>
                 ))}
               </div>

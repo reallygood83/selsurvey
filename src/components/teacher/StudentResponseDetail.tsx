@@ -293,12 +293,12 @@ export default function StudentResponseDetail({ responses, className = '' }: Stu
                               <div className="text-xs text-gray-500 mb-2">선택 가능했던 옵션들:</div>
                               <div className="flex flex-wrap gap-1">
                                 {questionDetails.options.map((option, optionIndex) => (
-                                  <Badge 
+                                  <Badge
                                     key={optionIndex}
-                                    variant={formatAnswer(resp.answer) === option ? "default" : "outline"}
+                                    variant={formatAnswer(resp.answer) === formatAnswer(option) ? "default" : "outline"}
                                     className="text-xs"
                                   >
-                                    {option}
+                                    {formatAnswer(option)}
                                   </Badge>
                                 ))}
                               </div>
