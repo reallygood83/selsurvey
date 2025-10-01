@@ -1,22 +1,26 @@
-// 🔥 강화된 AI 상담 리포트 생성 API - 3단계 fallback 매칭 시스템
+// 🔥 강화된 AI 상담 리포트 생성 API - 4단계 fallback 매칭 시스템 (Firestore 지원)
 import { NextRequest, NextResponse } from 'next/server';
 import { createGeminiInstance } from '@/lib/gemini';
 import { selTemplates, selDomainDescriptions } from '@/data/selTemplates';
 import { SurveyResponse } from '@/types';
 
-// 🔥 핵심 개선: 3단계 Fallback 질문 매칭 시스템 (컴포넌트와 동일)
+// 🔥 핵심 개선: 4단계 Fallback 질문 매칭 시스템 (컴포넌트와 동일)
 interface QuestionMatchResult {
   questionText: string;
   questionType: string;
   subCategory?: string;
   scaleLabels?: { min: string; max: string };
   options?: string[];
-  matchStatus: 'exact' | 'grade-fallback' | 'cross-fallback' | 'not-found';
+  matchStatus: 'exact' | 'grade-fallback' | 'cross-fallback' | 'custom-survey' | 'not-found';
   sourceTemplate: string;
   confidence: number; // 0-100%
 }
 
-const findQuestionWithEnhancedFallback = (questionId: string, responseGrade: number): QuestionMatchResult => {
+const findQuestionWithEnhancedFallback = async (
+  questionId: string,
+  responseGrade: number,
+  surveyId?: string
+): Promise<QuestionMatchResult> => {
   console.log(`🔍 [API] 질문 매칭 시작: ID=${questionId}, 학년=${responseGrade}`);
   
   // 1단계: 정확한 학년 템플릿에서 매칭 시도
@@ -57,11 +61,11 @@ const findQuestionWithEnhancedFallback = (questionId: string, responseGrade: num
 
   // 3단계: 모든 템플릿에서 부분 매칭 시도 (ID 유사성 검사)
   for (const template of selTemplates) {
-    const similarQuestion = template.questions.find(q => 
+    const similarQuestion = template.questions.find(q =>
       q.id.startsWith(questionId.substring(0, 2)) || // 같은 영역 (sa, sm, soa, rs, rdm)
       q.id.includes(questionId.substring(0, 3))      // 더 세밀한 매칭
     );
-    
+
     if (similarQuestion) {
       console.log(`⚠️ [API] 3단계 매칭 성공: ${template.title} (유사 ID: ${similarQuestion.id})`);
       return {
@@ -77,7 +81,43 @@ const findQuestionWithEnhancedFallback = (questionId: string, responseGrade: num
     }
   }
 
-  // 4단계: 매칭 실패 - 최소한의 정보 제공
+  // 🔥 4단계: Firestore에서 커스텀 설문 조회 (AI 생성 설문 포함)
+  if (surveyId) {
+    try {
+      console.log(`🔍 [API] 4단계 시도 (Firestore 커스텀 설문 조회): surveyId=${surveyId}`);
+      const { surveyService } = await import('@/lib/firestore');
+      const survey = await surveyService.getSurvey(surveyId);
+
+      if (survey && survey.questions) {
+        const customQuestion = survey.questions.find(q => q.id === questionId);
+
+        if (customQuestion) {
+          console.log(`✅ [API] 4단계 성공 (커스텀 설문 매칭):`, {
+            questionId,
+            surveyId,
+            surveyTitle: survey.title,
+            questionText: customQuestion.question
+          });
+          return {
+            questionText: customQuestion.question,
+            questionType: customQuestion.type,
+            subCategory: undefined,
+            scaleLabels: customQuestion.type === 'scale' ? { min: '전혀 그렇지 않다', max: '매우 그렇다' } : undefined,
+            options: customQuestion.options,
+            matchStatus: 'custom-survey',
+            sourceTemplate: survey.title || '커스텀 설문',
+            confidence: 90
+          };
+        }
+      }
+
+      console.warn(`⚠️ [API] 4단계 실패: surveyId ${surveyId}에서 questionId ${questionId}를 찾을 수 없음`);
+    } catch (error) {
+      console.error(`❌ [API] 4단계 Firestore 조회 오류:`, error);
+    }
+  }
+
+  // 5단계: 매칭 실패 - 최소한의 정보 제공
   console.log(`❌ [API] 매칭 실패: ${questionId}`);
   return {
     questionText: `질문 ID: ${questionId} (질문 내용을 찾을 수 없습니다)`,
@@ -415,26 +455,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🔥 핵심 개선: 강화된 질문-답변 매칭 처리
-    const enhanceResponsesWithAdvancedMatching = (responses: SurveyResponse[], grade: number) => {
+    // 🔥 핵심 개선: 강화된 질문-답변 매칭 처리 (비동기 지원)
+    const enhanceResponsesWithAdvancedMatching = async (responses: SurveyResponse[], grade: number) => {
       let totalQuestions = 0;
       const matchingStats = {
         exact: 0,
+        'custom-survey': 0,
         'cross-fallback': 0,
         'grade-fallback': 0,
         'not-found': 0
       };
 
-      const enhancedResponses = responses.map(response => {
-        const enhancedQuestionResponses = response.responses.map((resp) => {
+      const enhancedResponses = await Promise.all(responses.map(async (response) => {
+        const enhancedQuestionResponses = await Promise.all(response.responses.map(async (resp) => {
           totalQuestions++;
-          
-          // 강화된 매칭 시스템 사용
-          const matchResult = findQuestionWithEnhancedFallback(resp.questionId, grade);
-          
+
+          // 🔥 강화된 매칭 시스템 사용 (surveyId 전달)
+          const matchResult = await findQuestionWithEnhancedFallback(
+            resp.questionId,
+            grade,
+            response.surveyId
+          );
+
           // 매칭 통계 업데이트
           matchingStats[matchResult.matchStatus]++;
-          
+
           return {
             ...resp,
             questionText: matchResult.questionText,
@@ -446,23 +491,23 @@ export async function POST(request: NextRequest) {
             sourceTemplate: matchResult.sourceTemplate,
             confidence: matchResult.confidence
           };
-        });
+        }));
 
         return {
           ...response,
           responses: enhancedQuestionResponses
         };
-      });
+      }));
 
-      // 📊 데이터 품질 통계 계산
-      const matchingRate = totalQuestions > 0 ? 
-        ((matchingStats.exact + matchingStats['cross-fallback']) / totalQuestions * 100) : 0;
-      
-      const avgConfidence = totalQuestions > 0 ? 
-        (responses.reduce((acc, response) => {
-          return acc + response.responses.reduce((respAcc: number, resp) => {
-            const matchResult = findQuestionWithEnhancedFallback(resp.questionId, grade);
-            return respAcc + matchResult.confidence;
+      // 📊 데이터 품질 통계 계산 (custom-survey 포함)
+      const matchingRate = totalQuestions > 0 ?
+        ((matchingStats.exact + matchingStats['custom-survey'] + matchingStats['cross-fallback']) / totalQuestions * 100) : 0;
+
+      // 평균 신뢰도 계산 (이미 enhancedResponses에 confidence가 포함되어 있음)
+      const avgConfidence = totalQuestions > 0 ?
+        (enhancedResponses.reduce((acc, response) => {
+          return acc + response.responses.reduce((respAcc: number, resp: any) => {
+            return respAcc + (resp.confidence || 0);
           }, 0);
         }, 0) / totalQuestions) : 0;
 
@@ -493,7 +538,7 @@ export async function POST(request: NextRequest) {
       };
     };
 
-    const { enhancedResponses, dataQuality } = enhanceResponsesWithAdvancedMatching(responses || [], student.grade);
+    const { enhancedResponses, dataQuality } = await enhanceResponsesWithAdvancedMatching(responses || [], student.grade);
 
     // 학년에 맞는 질문 템플릿 선택
     const questionTemplate = student.grade <= 4 ? selTemplates[0] : selTemplates[1];
@@ -543,8 +588,8 @@ export async function POST(request: NextRequest) {
         _metadata: {
           dataQuality,
           generatedAt: new Date().toISOString(),
-          apiVersion: 'enhanced-v1.0',
-          matchingAlgorithm: '3-stage-fallback'
+          apiVersion: 'enhanced-v2.0',
+          matchingAlgorithm: '4-stage-fallback-with-firestore'
         }
       };
 
@@ -649,7 +694,8 @@ export async function POST(request: NextRequest) {
         _metadata: {
           dataQuality,
           generatedAt: new Date().toISOString(),
-          apiVersion: 'enhanced-v1.0-fallback',
+          apiVersion: 'enhanced-v2.0-fallback',
+          matchingAlgorithm: '4-stage-fallback-with-firestore',
           parseError: true
         },
         isEnhanced: true,
