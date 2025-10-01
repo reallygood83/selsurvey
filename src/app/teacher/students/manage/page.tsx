@@ -11,16 +11,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  Loader2, 
-  Users, 
-  UserPlus, 
-  UserMinus, 
-  Trash2, 
-  Eye, 
+import {
+  Loader2,
+  Users,
+  UserPlus,
+  UserMinus,
+  Trash2,
+  Eye,
   ArrowLeft,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Edit2, // 🆕 편집 아이콘
+  Check, // 🆕 확인 아이콘
+  X, // 🆕 취소 아이콘
+  ArrowUpDown, // 🆕 정렬 아이콘
+  Hash // 🆕 번호 아이콘
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -37,6 +42,9 @@ export default function StudentManagePage() {
   const [newStudentName, setNewStudentName] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<StudentWithResponses | null>(null);
   const [showResponsesDialog, setShowResponsesDialog] = useState(false);
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null); // 🆕 편집 중인 학생 ID
+  const [editingNumber, setEditingNumber] = useState<string>(''); // 🆕 편집 중인 번호
+  const [sortBy, setSortBy] = useState<'number' | 'name'>('number'); // 🆕 정렬 기준
 
   useEffect(() => {
     if (user && userProfile?.role === 'teacher' && userProfile.schoolInfo?.classCode) {
@@ -277,6 +285,64 @@ export default function StudentManagePage() {
     setShowResponsesDialog(true);
   };
 
+  // 🆕 번호 편집 시작
+  const startEditingNumber = (student: StudentWithResponses) => {
+    setEditingStudentId(student.id);
+    setEditingNumber(student.studentNumber?.toString() || '');
+  };
+
+  // 🆕 번호 업데이트
+  const handleUpdateNumber = async (studentId: string) => {
+    try {
+      const numberValue = editingNumber.trim() ? parseInt(editingNumber.trim()) : undefined;
+
+      // 유효성 검사
+      if (numberValue !== undefined && (numberValue < 1 || numberValue > 99)) {
+        toast.error('번호는 1~99 사이여야 합니다.');
+        return;
+      }
+
+      // Firestore 업데이트
+      await studentService.updateStudentProfile(studentId, { studentNumber: numberValue });
+
+      // 로컬 상태 업데이트
+      setStudents(students.map(s =>
+        s.id === studentId ? { ...s, studentNumber: numberValue } : s
+      ));
+
+      setEditingStudentId(null);
+      setEditingNumber('');
+      toast.success('번호가 업데이트되었습니다.');
+    } catch (error) {
+      console.error('번호 업데이트 오류:', error);
+      toast.error('번호 업데이트에 실패했습니다.');
+    }
+  };
+
+  // 🆕 번호 편집 취소
+  const cancelEditingNumber = () => {
+    setEditingStudentId(null);
+    setEditingNumber('');
+  };
+
+  // 🆕 학생 정렬
+  const sortedStudents = [...students].sort((a, b) => {
+    if (sortBy === 'number') {
+      // 번호순: 번호가 있는 학생 먼저, 같은 번호면 이름순
+      if (a.studentNumber !== undefined && b.studentNumber === undefined) return -1;
+      if (a.studentNumber === undefined && b.studentNumber !== undefined) return 1;
+      if (a.studentNumber !== undefined && b.studentNumber !== undefined) {
+        if (a.studentNumber !== b.studentNumber) {
+          return a.studentNumber - b.studentNumber;
+        }
+      }
+      return a.name.localeCompare(b.name, 'ko-KR');
+    } else {
+      // 이름순(가나다순)
+      return a.name.localeCompare(b.name, 'ko-KR');
+    }
+  });
+
   // authLoading이 끝날 때까지 로딩 화면 표시 (너무 빠른 권한 체크 방지)
   if (authLoading) {
     return (
@@ -452,9 +518,30 @@ export default function StudentManagePage() {
         {/* 학생 목록 */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">
-              학생 목록 ({students.length}명)
-            </CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-lg">
+                학생 목록 ({students.length}명)
+              </CardTitle>
+              {/* 🆕 정렬 버튼 */}
+              <div className="flex gap-2">
+                <Button
+                  variant={sortBy === 'number' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortBy('number')}
+                >
+                  <Hash className="w-4 h-4 mr-1" />
+                  번호순
+                </Button>
+                <Button
+                  variant={sortBy === 'name' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortBy('name')}
+                >
+                  <ArrowUpDown className="w-4 h-4 mr-1" />
+                  가나다순
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {students.length === 0 ? (
@@ -475,6 +562,10 @@ export default function StudentManagePage() {
                 <table className="min-w-full divide-y divide-border">
                   <thead className="bg-muted/50">
                     <tr>
+                      {/* 🆕 번호 컬럼 */}
+                      <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        번호
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         이름
                       </th>
@@ -499,8 +590,62 @@ export default function StudentManagePage() {
                     </tr>
                   </thead>
                   <tbody className="bg-background divide-y divide-border">
-                    {students.map((student) => (
-                      <tr key={student.id} className="hover:bg-muted/50">
+                    {sortedStudents.map((student) => (
+                      <tr key={student.id} className="group hover:bg-muted/50">
+                        {/* 🆕 번호 셀 (편집 가능) */}
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          {editingStudentId === student.id ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                min="1"
+                                max="99"
+                                value={editingNumber}
+                                onChange={(e) => setEditingNumber(e.target.value)}
+                                className="w-16 h-8 text-sm"
+                                placeholder="번호"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleUpdateNumber(student.id);
+                                  } else if (e.key === 'Escape') {
+                                    cancelEditingNumber();
+                                  }
+                                }}
+                              />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleUpdateNumber(student.id)}
+                              >
+                                <Check className="w-4 h-4 text-green-600" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={cancelEditingNumber}
+                              >
+                                <X className="w-4 h-4 text-red-600" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-700">
+                                {student.studentNumber || '-'}
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                                onClick={() => startEditingNumber(student)}
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium">
                             {student.name}

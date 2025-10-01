@@ -38,6 +38,7 @@ export default function StudentRegisterPage() {
   const [classCode, setClassCode] = useState('');
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [studentName, setStudentName] = useState('');
+  const [studentNumber, setStudentNumber] = useState(''); // 🆕 학생 번호 (선택적)
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // URL에서 classCode 파라미터 가져오기
@@ -114,6 +115,7 @@ export default function StudentRegisterPage() {
       const studentProfile: Omit<StudentProfile, 'id'> = {
         userId: user.uid,
         name: studentName.trim(),
+        studentNumber: studentNumber.trim() ? parseInt(studentNumber.trim()) : undefined, // 🆕 번호 (선택적)
         grade: classInfo.grade,
         classCode: classInfo.classCode,
         teacherId: classInfo.teacherId,
@@ -328,6 +330,26 @@ export default function StudentRegisterPage() {
                   />
                   <p className="text-sm text-gray-500">
                     선생님이 확인할 수 있도록 학교에서 사용하는 실제 이름을 입력해주세요.
+                  </p>
+                </div>
+
+                {/* 🆕 번호 입력 (선택적) */}
+                <div className="space-y-2">
+                  <Label htmlFor="studentNumber" className="text-base font-medium">
+                    번호 (선택사항)
+                  </Label>
+                  <Input
+                    id="studentNumber"
+                    type="number"
+                    min="1"
+                    max="99"
+                    value={studentNumber}
+                    onChange={(e) => setStudentNumber(e.target.value)}
+                    placeholder="출석번호를 입력하세요 (예: 3)"
+                    className="h-12 text-base"
+                  />
+                  <p className="text-sm text-gray-500">
+                    출석번호가 있다면 입력해주세요. 나중에 선생님이 추가할 수도 있습니다.
                   </p>
                 </div>
 

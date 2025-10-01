@@ -179,18 +179,19 @@ export interface StudentProfile {
   id: string;
   userId: string;
   name: string;
+  studentNumber?: number; // 🆕 학생 번호 (선택적, 1-99)
   grade: Grade;
   classCode: string;
   teacherId: string;
   joinedAt: Date;
   isActive: boolean;
-  
+
   // SEL 관련 정보
   currentScores?: SELScores;
   recentAnalysis?: SELAnalysis;
   responseHistory: SurveyResponse[];
   analysisHistory: SELAnalysis[];
-  
+
   // 통계 정보
   totalResponses: number;
   participationRate: number; // 참여율 (%)
