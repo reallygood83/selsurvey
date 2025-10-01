@@ -63,6 +63,17 @@ export interface Survey {
   updatedAt: Date;
 }
 
+// 설문 공유 (다중 학급 지원)
+export interface SurveyShare {
+  id: string;
+  surveyId: string;       // 공유할 설문 ID
+  classCode: string;      // 공유 대상 학급 코드
+  teacherId: string;      // 공유한 교사 ID (권한 확인용)
+  isActive: boolean;      // 해당 학급에서 활성화 여부
+  sharedAt: Date;         // 공유 시작 시간
+  endDate?: Date;         // 공유 종료 시간 (선택사항)
+}
+
 // 사용자 정보
 export interface User {
   id: string;

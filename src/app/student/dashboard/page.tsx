@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { surveyService, studentService } from '@/lib/firestore';
+import { surveyService, surveyShareService, studentService } from '@/lib/firestore';
 import { StudentProfile, SurveyResponse, SELAnalysis } from '@/types';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -96,12 +96,29 @@ export default function StudentDashboardPage() {
 
     const surveys = [];
 
-    // 교사가 공유한 설문 조회
+    // 교사가 공유한 설문 조회 (기존 방식 + 신규 방식 병행)
     try {
-      const sharedSurveys = await surveyService.getSharedSurveys(profile.classCode);
-      
+      // ✅ 방법 1: 기존 방식 (Survey.classCode 매칭)
+      const oldStyleSurveys = await surveyService.getSharedSurveys(profile.classCode);
+
+      // ✅ 방법 2: 신규 방식 (SurveyShares 컬렉션 활용)
+      const newStyleSurveys = await surveyShareService.getSharedSurveysForClass(profile.classCode);
+
+      // 두 방식 결과 합치기 (중복 제거)
+      const allSharedSurveys = [...oldStyleSurveys, ...newStyleSurveys];
+      const uniqueSurveys = Array.from(
+        new Map(allSharedSurveys.map(survey => [survey.id, survey])).values()
+      );
+
+      console.log(`✅ [StudentDashboard] 공유 설문 조회 완료:`, {
+        oldStyle: oldStyleSurveys.length,
+        newStyle: newStyleSurveys.length,
+        total: uniqueSurveys.length,
+        classCode: profile.classCode
+      });
+
       // 아직 응답하지 않은 공유 설문만 추가
-      for (const sharedSurvey of sharedSurveys) {
+      for (const sharedSurvey of uniqueSurveys) {
         const hasResponded = recentResponses.some(r => r.surveyId === sharedSurvey.id);
         if (!hasResponded) {
           surveys.push({

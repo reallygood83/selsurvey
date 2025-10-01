@@ -15,14 +15,15 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { 
-  User, 
-  ClassInfo, 
-  StudentProfile, 
-  SurveyResponse, 
-  SELAnalysis, 
+import {
+  User,
+  ClassInfo,
+  StudentProfile,
+  SurveyResponse,
+  SELAnalysis,
   SurveyQuestion,
   Survey,
+  SurveyShare,
   UserRole,
   Grade,
   DailyMood
@@ -34,6 +35,7 @@ const COLLECTIONS = {
   CLASSES: 'classes',
   STUDENTS: 'students',
   SURVEYS: 'surveys',
+  SURVEY_SHARES: 'surveyShares', // ✅ 다중 학급 공유용
   SURVEY_RESPONSES: 'surveyResponses',
   SEL_ANALYSES: 'selAnalyses',
   SURVEY_QUESTIONS: 'surveyQuestions',
@@ -1212,6 +1214,153 @@ export const moodService = {
       };
       
       await this.saveDailyMood(newMood);
+    }
+  }
+};
+
+// =====================================
+// 설문 공유 서비스 (다중 학급 지원)
+// =====================================
+export const surveyShareService = {
+  // 설문을 특정 학급에 공유
+  async shareSurveyToClass(
+    surveyId: string,
+    classCode: string,
+    teacherId: string,
+    isActive: boolean = true
+  ): Promise<string> {
+    try {
+      const shareData: Omit<SurveyShare, 'id'> = {
+        surveyId,
+        classCode,
+        teacherId,
+        isActive,
+        sharedAt: new Date()
+      };
+
+      const sharesRef = collection(db, COLLECTIONS.SURVEY_SHARES);
+      const docRef = await addDoc(sharesRef, {
+        ...shareData,
+        sharedAt: toTimestamp(shareData.sharedAt)
+      });
+
+      console.log('✅ [SurveyShare] 설문 공유 완료:', {
+        surveyId,
+        classCode,
+        shareId: docRef.id
+      });
+
+      return docRef.id;
+    } catch (error) {
+      console.error('❌ [SurveyShare] 설문 공유 오류:', error);
+      throw error;
+    }
+  },
+
+  // 특정 학급에 공유된 설문 목록 조회 (활성화된 것만)
+  async getSharedSurveysForClass(classCode: string): Promise<Survey[]> {
+    try {
+      // 1. 해당 학급에 공유된 설문 ID들 조회
+      const sharesRef = collection(db, COLLECTIONS.SURVEY_SHARES);
+      const sharesQuery = query(
+        sharesRef,
+        where('classCode', '==', classCode),
+        where('isActive', '==', true)
+      );
+      const sharesSnapshot = await getDocs(sharesQuery);
+
+      const surveyIds = sharesSnapshot.docs.map(doc => doc.data().surveyId);
+
+      if (surveyIds.length === 0) {
+        return [];
+      }
+
+      // 2. 설문 ID들로 설문 조회
+      const surveysRef = collection(db, COLLECTIONS.SURVEYS);
+      const surveys: Survey[] = [];
+
+      // Firestore의 'in' 쿼리는 최대 10개까지만 지원하므로 배치 처리
+      const batchSize = 10;
+      for (let i = 0; i < surveyIds.length; i += batchSize) {
+        const batch = surveyIds.slice(i, i + batchSize);
+        const surveysQuery = query(surveysRef, where('__name__', 'in', batch));
+        const surveysSnapshot = await getDocs(surveysQuery);
+
+        surveysSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          surveys.push({
+            id: doc.id,
+            ...data,
+            questions: data.questions || [],
+            createdAt: fromTimestamp(data.createdAt),
+            updatedAt: fromTimestamp(data.updatedAt)
+          } as Survey);
+        });
+      }
+
+      console.log(`✅ [SurveyShare] 학급 ${classCode}에 공유된 설문 ${surveys.length}개 조회`);
+
+      return surveys.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    } catch (error) {
+      console.error('❌ [SurveyShare] 공유 설문 조회 오류:', error);
+      return [];
+    }
+  },
+
+  // 설문 공유 상태 토글 (활성화/비활성화)
+  async toggleShareStatus(shareId: string): Promise<void> {
+    try {
+      const shareRef = doc(db, COLLECTIONS.SURVEY_SHARES, shareId);
+      const shareDoc = await getDoc(shareRef);
+
+      if (!shareDoc.exists()) {
+        throw new Error('공유 정보를 찾을 수 없습니다.');
+      }
+
+      const currentStatus = shareDoc.data().isActive;
+      await updateDoc(shareRef, {
+        isActive: !currentStatus
+      });
+
+      console.log('✅ [SurveyShare] 공유 상태 변경:', {
+        shareId,
+        newStatus: !currentStatus
+      });
+    } catch (error) {
+      console.error('❌ [SurveyShare] 공유 상태 변경 오류:', error);
+      throw error;
+    }
+  },
+
+  // 특정 설문이 공유된 모든 학급 조회
+  async getClassesForSurvey(surveyId: string): Promise<SurveyShare[]> {
+    try {
+      const sharesRef = collection(db, COLLECTIONS.SURVEY_SHARES);
+      const sharesQuery = query(sharesRef, where('surveyId', '==', surveyId));
+      const snapshot = await getDocs(sharesQuery);
+
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        sharedAt: fromTimestamp(doc.data().sharedAt),
+        endDate: doc.data().endDate ? fromTimestamp(doc.data().endDate) : undefined
+      } as SurveyShare));
+    } catch (error) {
+      console.error('❌ [SurveyShare] 설문 공유 목록 조회 오류:', error);
+      return [];
+    }
+  },
+
+  // 공유 삭제 (특정 학급에서 설문 제거)
+  async removeShare(shareId: string): Promise<void> {
+    try {
+      const shareRef = doc(db, COLLECTIONS.SURVEY_SHARES, shareId);
+      await deleteDoc(shareRef);
+
+      console.log('✅ [SurveyShare] 공유 삭제 완료:', shareId);
+    } catch (error) {
+      console.error('❌ [SurveyShare] 공유 삭제 오류:', error);
+      throw error;
     }
   }
 };
