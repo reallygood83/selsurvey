@@ -33,6 +33,7 @@ export default function TeacherDashboardPage() {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportType, setReportType] = useState<'student' | 'class'>('class');
   const [selectedStudentForReport, setSelectedStudentForReport] = useState<string>('');
+  const [studentSearchQuery, setStudentSearchQuery] = useState(''); // 학생 검색어
 
   // 새로운 응답 선택 기능을 위한 state
   const [responseSelectionMode, setResponseSelectionMode] = useState<'single' | 'range' | 'all'>('all');
@@ -378,10 +379,11 @@ export default function TeacherDashboardPage() {
 
       setClassInfo(activeClass);
 
-      // 학생 목록 로드
+      // 학생 목록 로드 (가나다순 정렬)
       const studentsData = await studentService.getStudentsByClass(activeClass.classCode);
-      setStudents(studentsData);
-      console.log('✅ [Dashboard] 학생 목록 로드:', studentsData.length, '명');
+      const sortedStudents = studentsData.sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
+      setStudents(sortedStudents);
+      console.log('✅ [Dashboard] 학생 목록 로드:', sortedStudents.length, '명');
 
       // 최근 설문 응답 로드 - classCode 기반으로 직접 조회
       console.log('📊 [Dashboard] 설문 응답 로드 시작:', {
@@ -1405,19 +1407,38 @@ export default function TeacherDashboardPage() {
 
                   {/* 학생 선택 (개별 분석 시) */}
                   {reportType === 'student' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">분석할 학생 선택</label>
+                    <div className="space-y-3">
+                      <label className="block text-sm font-medium text-gray-700">분석할 학생 선택</label>
+
+                      {/* 학생 검색 박스 */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="학생 이름으로 검색..."
+                          value={studentSearchQuery}
+                          onChange={(e) => setStudentSearchQuery(e.target.value)}
+                          className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      </div>
+
+                      {/* 학생 선택 드롭다운 */}
                       <select
                         value={selectedStudentForReport}
                         onChange={(e) => setSelectedStudentForReport(e.target.value)}
                         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       >
                         <option value="">학생을 선택하세요</option>
-                        {students.map((student) => (
-                          <option key={student.id} value={student.id}>
-                            {student.name} ({student.grade}학년)
-                          </option>
-                        ))}
+                        {students
+                          .filter(student =>
+                            student.name.toLowerCase().includes(studentSearchQuery.toLowerCase())
+                          )
+                          .sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'))
+                          .map((student) => (
+                            <option key={student.id} value={student.id}>
+                              {student.name} ({student.grade}학년)
+                            </option>
+                          ))}
                       </select>
                       {/* 디버깅 정보 */}
                       <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
