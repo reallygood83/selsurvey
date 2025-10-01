@@ -1378,17 +1378,18 @@ export default function TeacherDashboardPage() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">리포트 유형</label>
                     <div className="grid grid-cols-2 gap-4">
-                      <div 
-                        className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
-                          reportType === 'class' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-200'
-                        }`}
-                        onClick={() => setReportType('class')}
+                      <div
+                        className="border-2 rounded-lg p-4 bg-gray-50 border-gray-300 opacity-60 cursor-not-allowed relative"
+                        title="현재 개발중인 기능입니다"
                       >
-                        <div className="flex items-center mb-2">
-                          <Users className="w-5 h-5 mr-2 text-purple-600" />
-                          <span className="font-medium">학급 전체 분석</span>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <Users className="w-5 h-5 mr-2 text-gray-400" />
+                            <span className="font-medium text-gray-500">학급 전체 분석</span>
+                          </div>
+                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">개발중</span>
                         </div>
-                        <p className="text-sm text-gray-600">학급 전체의 SEL 발달 현황과 경향을 분석합니다</p>
+                        <p className="text-sm text-gray-500">학급 전체의 SEL 발달 현황과 경향을 분석합니다</p>
                       </div>
                       <div 
                         className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${

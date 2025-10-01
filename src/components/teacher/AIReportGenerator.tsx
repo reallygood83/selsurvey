@@ -690,25 +690,11 @@ ${reportData.nextSteps?.map(item => `• ${item}`).join('\n') || ''}
             studentId={student.id}
           />
 
-          {/* HTML 다운로드 버튼 - 비교 분석 포함 */}
+          {/* HTML 다운로드 버튼 */}
           <ReportHTMLDownloader
             reportData={reportData}
             studentName={student.name}
             studentId={student.id}
-            radarChartData={{
-              selfAwareness: 85,
-              selfManagement: 78,
-              socialAwareness: 82,
-              relationshipSkills: 75,
-              responsibleDecision: 88
-            }}
-            comparisonData={{
-              classAverage: 80,
-              gradeAverage: 78,
-              previousMonth: 79,
-              currentMonth: 82,
-              trend: 'up'
-            }}
           />
         </>
       )}
