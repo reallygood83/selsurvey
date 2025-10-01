@@ -140,7 +140,7 @@ export default function AIReportGenerator({
       console.log('✅ AI 리포트 생성 완료:', aiReport);
 
       // 📊 Enhanced: 개인화된 응답 구조 + 데이터 품질 정보 처리
-      setReportData({
+      const reportDataToSave = {
         // 새로운 개인화된 필드들
         uniqueProfile: aiReport.uniqueProfile,
         strengthsFromData: aiReport.strengthsFromData,
@@ -150,7 +150,7 @@ export default function AIReportGenerator({
         parentGuidance: aiReport.parentGuidance,
         specificGoals: aiReport.specificGoals,
         evidenceQuotes: aiReport.evidenceQuotes,
-        
+
         // Fallback: 기존 구조 지원 (AI가 기본 응답을 보낸 경우)
         summary: aiReport.summary || `${student.name} 학생의 종합 분석 결과입니다.`,
         strengths: aiReport.strengths || ['분석 진행 중'],
@@ -159,15 +159,51 @@ export default function AIReportGenerator({
         classroomStrategies: aiReport.classroomStrategies || ['개별 맞춤 지원'],
         parentSuggestions: aiReport.parentSuggestions || ['가정에서의 관심과 격려'],
         nextSteps: aiReport.nextSteps || ['정기적인 상담 및 관찰'],
-        
+
         // 📊 Enhanced: 데이터 품질 및 메타데이터 정보 추가
         dataQuality: aiReport.dataQuality,
         analysisMetadata: aiReport.analysisMetadata,
         savedReportId: aiReport.savedReportId,
         isPersonalized: aiReport.isPersonalized,
-        
+
         generatedAt: new Date().toLocaleString('ko-KR')
-      });
+      };
+
+      // 💾 Firestore에 리포트 저장
+      try {
+        console.log('💾 리포트를 Firestore에 저장 중...');
+        const saveResponse = await fetch('/api/ai-reports/save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            studentId: student.id,
+            teacherId: student.teacherId,
+            studentName: student.name,
+            grade: student.grade,
+            classCode: student.classCode,
+            reportData: reportDataToSave,
+            analysisDataSource: {
+              responsesCount: responses.length,
+              analysesCount: analyses.length,
+              period: '최근 활동 기록'
+            }
+          }),
+        });
+
+        if (saveResponse.ok) {
+          const saveResult = await saveResponse.json();
+          console.log('✅ 리포트 저장 완료:', saveResult.reportId);
+          reportDataToSave.savedReportId = saveResult.reportId;
+        } else {
+          console.warn('⚠️ 리포트 저장 실패 (리포트는 화면에 표시됨)');
+        }
+      } catch (saveError) {
+        console.error('❌ 리포트 저장 오류 (리포트는 화면에 표시됨):', saveError);
+      }
+
+      setReportData(reportDataToSave);
 
     } catch (err) {
       console.error('❌ AI 리포트 생성 오류:', err);
