@@ -224,7 +224,10 @@ export async function POST(request: NextRequest) {
       studentResponses = [specificResponse];
       console.log('📊 [Student Report] 1개 응답 모드:', {
         responseId,
-        submittedAt: specificResponse.submittedAt
+        submittedAt: specificResponse.submittedAt instanceof Date
+          ? specificResponse.submittedAt.toISOString()
+          : String(specificResponse.submittedAt),
+        responseStudentId: specificResponse.studentId
       });
 
     } else if (responseSelectionMode === 'range') {
@@ -300,8 +303,15 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ [Student Report] 리포트 생성 오류:', error);
+    console.error('❌ [Student Report] 오류 상세:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return NextResponse.json(
-      { error: 'AI 리포트 생성 중 오류가 발생했습니다.' },
+      {
+        error: 'AI 리포트 생성 중 오류가 발생했습니다.',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
