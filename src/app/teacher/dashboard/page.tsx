@@ -31,6 +31,12 @@ export default function TeacherDashboardPage() {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportType, setReportType] = useState<'student' | 'class'>('class');
   const [selectedStudentForReport, setSelectedStudentForReport] = useState<string>('');
+
+  // 새로운 응답 선택 기능을 위한 state
+  const [responseSelectionMode, setResponseSelectionMode] = useState<'single' | 'range' | 'all'>('all');
+  const [selectedResponseId, setSelectedResponseId] = useState<string>('');
+  const [studentResponses, setStudentResponses] = useState<SurveyResponse[]>([]);
+
   const [reportDateRange, setReportDateRange] = useState({
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30일 전
     endDate: new Date().toISOString().split('T')[0] // 오늘
@@ -60,6 +66,27 @@ export default function TeacherDashboardPage() {
       loadDashboardData();
     }
   }, [user, userProfile, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 학생 선택 시 해당 학생의 응답 목록 로드
+  useEffect(() => {
+    const loadStudentResponses = async () => {
+      if (!selectedStudentForReport || !classInfo) return;
+
+      try {
+        const allResponses = await surveyService.getResponsesByClass(classInfo.classCode);
+        const filteredResponses = allResponses
+          .filter(r => r.studentId === selectedStudentForReport)
+          .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+
+        setStudentResponses(filteredResponses);
+        console.log(`✅ [Dashboard] 학생 응답 로드 완료: ${filteredResponses.length}개`);
+      } catch (error) {
+        console.error('❌ [Dashboard] 학생 응답 로드 오류:', error);
+      }
+    };
+
+    loadStudentResponses();
+  }, [selectedStudentForReport, classInfo]);
 
   // 스크롤 이벤트 리스너 (플로팅 버튼용)
   useEffect(() => {
@@ -178,6 +205,8 @@ export default function TeacherDashboardPage() {
       user: user ? user.uid : '없음',
       reportType,
       selectedStudentForReport,
+      responseSelectionMode,
+      selectedResponseId,
       studentsCount: students.length,
       recentResponsesCount: recentResponses.length,
       dateRange: reportDateRange
@@ -193,18 +222,27 @@ export default function TeacherDashboardPage() {
       return;
     }
 
+    // 1개 응답 모드일 때 응답 선택 확인
+    if (reportType === 'student' && responseSelectionMode === 'single' && !selectedResponseId) {
+      alert('분석할 응답을 선택해주세요.');
+      return;
+    }
+
     setGeneratingReport(true);
     setGeneratedReport(null);
 
     try {
       const endpoint = reportType === 'student' ? '/api/reports/student' : '/api/reports/class';
-      const requestBody = reportType === 'student' 
+      const requestBody = reportType === 'student'
         ? {
             studentId: selectedStudentForReport,
             classCode: classInfo.classCode,
             startDate: reportDateRange.startDate,
             endDate: reportDateRange.endDate,
-            reportType: 'individual'
+            reportType: 'individual',
+            // 새로운 응답 선택 모드 파라미터 추가
+            responseSelectionMode,
+            ...(responseSelectionMode === 'single' && { responseId: selectedResponseId })
           }
         : {
             classCode: classInfo.classCode,
@@ -1323,9 +1361,103 @@ export default function TeacherDashboardPage() {
                     </div>
                   )}
 
-                  {/* 기간 선택 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">분석 기간</label>
+                  {/* 새로운 3-Tier 응답 선택 UI (개별 학생 분석 시에만 표시) */}
+                  {reportType === 'student' && selectedStudentForReport && (
+                    <div className="space-y-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        📊 응답 선택 방식
+                      </label>
+
+                      {/* Tier 2: 모드 선택 Tabs */}
+                      <div className="flex space-x-2 border-b border-gray-200">
+                        <button
+                          className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                            responseSelectionMode === 'single'
+                              ? 'border-purple-500 text-purple-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700'
+                          }`}
+                          onClick={() => {
+                            setResponseSelectionMode('single');
+                            setSelectedResponseId('');
+                          }}
+                        >
+                          1개 응답
+                        </button>
+                        <button
+                          className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                            responseSelectionMode === 'range'
+                              ? 'border-purple-500 text-purple-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700'
+                          }`}
+                          onClick={() => {
+                            setResponseSelectionMode('range');
+                            setSelectedResponseId('');
+                          }}
+                        >
+                          기간 설정
+                        </button>
+                        <button
+                          className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                            responseSelectionMode === 'all'
+                              ? 'border-purple-500 text-purple-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700'
+                          }`}
+                          onClick={() => {
+                            setResponseSelectionMode('all');
+                            setSelectedResponseId('');
+                          }}
+                        >
+                          전체
+                        </button>
+                      </div>
+
+                      {/* Tier 3: 상세 선택 */}
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        {responseSelectionMode === 'single' && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              분석할 응답 선택
+                            </label>
+                            <select
+                              value={selectedResponseId}
+                              onChange={(e) => setSelectedResponseId(e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            >
+                              <option value="">응답을 선택하세요</option>
+                              {studentResponses.map((response) => {
+                                const date = new Date(response.submittedAt);
+                                const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                                return (
+                                  <option key={response.id} value={response.id}>
+                                    {formattedDate} | {response.surveyType === 'daily' ? '일일체크' : response.surveyType === 'weekly' ? '주간설문' : '기타'}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            <p className="mt-2 text-xs text-gray-500">
+                              💡 선택한 1개의 응답 결과를 기반으로 AI 리포트를 생성합니다
+                            </p>
+                          </div>
+                        )}
+
+                        {responseSelectionMode === 'all' && (
+                          <div className="text-center py-4">
+                            <p className="text-sm text-gray-600">
+                              ✅ 학생의 <strong>모든 응답</strong>을 분석합니다
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              총 {studentResponses.length}개의 응답이 분석됩니다
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 기간 선택 (기간 설정 모드 또는 학급 전체 분석일 때만 표시) */}
+                  {(reportType === 'class' || (reportType === 'student' && responseSelectionMode === 'range')) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">분석 기간</label>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">시작일</label>
