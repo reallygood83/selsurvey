@@ -186,7 +186,13 @@ export function ClassMoodOverview({ classCode }: ClassMoodOverviewProps) {
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground">개별 학생 감정 ({todayMoods.length}명)</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {todayMoods.map((mood) => (
+                  {todayMoods
+                    .sort((a, b) => {
+                      const nameA = getStudentName(a.studentId);
+                      const nameB = getStudentName(b.studentId);
+                      return nameA.localeCompare(nameB, 'ko-KR');
+                    })
+                    .map((mood) => (
                     <div
                       key={mood.id}
                       className="flex items-center gap-3 p-3 rounded-lg border bg-card"

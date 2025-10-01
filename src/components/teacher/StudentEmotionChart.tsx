@@ -38,11 +38,13 @@ export function StudentEmotionChart({ classCode }: StudentEmotionChartProps) {
     setLoading(true);
     try {
       const studentsData = await studentService.getStudentsByClass(classCode);
-      setStudents(studentsData);
-      
+      // 학생 목록 가나다순 정렬
+      const sortedStudents = studentsData.sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
+      setStudents(sortedStudents);
+
       // 첫 번째 학생을 기본 선택
-      if (studentsData.length > 0) {
-        setSelectedStudent(studentsData[0].id);
+      if (sortedStudents.length > 0) {
+        setSelectedStudent(sortedStudents[0].id);
       }
     } catch (error) {
       console.error('학생 목록 로드 오류:', error);
