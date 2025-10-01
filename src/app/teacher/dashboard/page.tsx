@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { classService, studentService, surveyService } from '@/lib/firestore';
 import { ClassInfo, StudentProfile, SurveyResponse, Survey } from '@/types';
 import Link from 'next/link';
@@ -19,6 +20,7 @@ import { StudentInviteLink } from '@/components/teacher/StudentInviteLink';
 
 export default function TeacherDashboardPage() {
   const { user, userProfile, logout, loading: authLoading } = useAuth();
+  const { geminiApiKey, isGeminiConfigured } = useSettings();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -217,6 +219,13 @@ export default function TeacherDashboardPage() {
       return;
     }
 
+    // Gemini API 키 확인
+    if (!isGeminiConfigured || !geminiApiKey) {
+      alert('먼저 설정 페이지에서 Gemini API 키를 설정해주세요.');
+      router.push('/teacher/settings');
+      return;
+    }
+
     if (reportType === 'student' && !selectedStudentForReport) {
       alert('분석할 학생을 선택해주세요.');
       return;
@@ -275,13 +284,17 @@ export default function TeacherDashboardPage() {
             responseSelectionMode,
             ...(responseSelectionMode === 'single' && { responseId: selectedResponseId }),
             // 프론트엔드에서 가져온 응답 데이터 전달 (권한 문제 해결)
-            responses: selectedResponses
+            responses: selectedResponses,
+            // Gemini API 키 전달
+            geminiApiKey
           }
         : {
             classCode: classInfo.classCode,
             startDate: reportDateRange.startDate,
             endDate: reportDateRange.endDate,
-            includeIndividualInsights: true
+            includeIndividualInsights: true,
+            // Gemini API 키 전달
+            geminiApiKey
           };
 
       console.log('🤖 [AI Report] 리포트 생성 요청:', {

@@ -3,9 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { surveyService, studentService } from '@/lib/firestore';
 import { SurveyResponse, StudentProfile } from '@/types';
 
-// Claude AI API 설정
-const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
-const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
+// Gemini AI API 설정
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
 
 interface StudentReportRequest {
   studentId: string;
@@ -18,6 +17,8 @@ interface StudentReportRequest {
   responseId?: string; // single 모드일 때 사용
   // 프론트엔드에서 이미 가져온 응답 데이터 (권한 문제 해결)
   responses?: SurveyResponse[];
+  // Gemini API Key (사용자가 설정한 키)
+  geminiApiKey: string;
 }
 
 interface SELAnalysis {
@@ -54,10 +55,11 @@ interface SELAnalysis {
 async function generateSELAnalysis(
   student: StudentProfile,
   responses: SurveyResponse[],
-  dateRange: { start: Date; end: Date }
+  dateRange: { start: Date; end: Date },
+  geminiApiKey: string
 ): Promise<SELAnalysis> {
-  if (!CLAUDE_API_KEY) {
-    throw new Error('Claude API key is not configured');
+  if (!geminiApiKey) {
+    throw new Error('Gemini API key is not provided');
   }
 
   // 응답 데이터를 분석용 텍스트로 변환
@@ -131,31 +133,35 @@ ${JSON.stringify(analysisData, null, 2)}
 반드시 유효한 JSON 형식으로만 응답해주세요.`;
 
   try {
-    const response = await fetch(CLAUDE_API_URL, {
+    // Gemini API 호출
+    const apiUrl = `${GEMINI_API_URL}?key=${geminiApiKey}`;
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 2000,
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json'
+        }
       })
     });
 
     if (!response.ok) {
-      console.error('Claude API Error:', await response.text());
+      console.error('Gemini API Error:', await response.text());
       throw new Error('Failed to generate AI analysis');
     }
 
     const data = await response.json();
-    const analysisText = data.content[0].text;
-    
+    const analysisText = data.candidates[0].content.parts[0].text;
+
     try {
       return JSON.parse(analysisText);
     } catch (parseError) {
@@ -180,7 +186,8 @@ export async function POST(request: NextRequest) {
       reportType,
       responseSelectionMode = 'all',  // 기본값: 전체 응답
       responseId,
-      responses  // 프론트엔드에서 전달받은 응답 데이터
+      responses,  // 프론트엔드에서 전달받은 응답 데이터
+      geminiApiKey  // 사용자가 설정한 Gemini API 키
     }: StudentReportRequest = await request.json();
 
     console.log('🔍 [Student Report] 리포트 생성 요청:', {
@@ -275,7 +282,7 @@ export async function POST(request: NextRequest) {
     }
 
     // AI 분석 생성
-    const analysis = await generateSELAnalysis(student, studentResponses, { start, end });
+    const analysis = await generateSELAnalysis(student, studentResponses, { start, end }, geminiApiKey);
 
     const report = {
       student: {
