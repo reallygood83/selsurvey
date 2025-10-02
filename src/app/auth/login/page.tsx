@@ -1,22 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Chrome, 
-  AlertCircle, 
-  Loader2, 
+import {
+  Chrome,
+  AlertCircle,
+  Loader2,
   CheckCircle2,
   Shield,
   GraduationCap,
   Heart,
   UserCheck,
-  Sparkles
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
+import {
+  isInAppBrowser,
+  getInAppBrowserType,
+  getInAppBrowserMessage,
+  getOpenInBrowserInstructions,
+  openInExternalBrowser
+} from '@/lib/browser-utils';
 
 type UserRole = 'teacher' | 'student' | null;
 
@@ -24,7 +32,22 @@ export default function LoginPage() {
   const { signInWithGoogle, loading, error, clearError, refreshProfile } = useAuth();
   const [selectedRole, setSelectedRole] = useState<UserRole>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [showInAppWarning, setShowInAppWarning] = useState(false);
+  const [inAppBrowserType, setInAppBrowserType] = useState<string | null>(null);
   const router = useRouter();
+
+  // WebView 감지
+  useEffect(() => {
+    const isWebView = isInAppBrowser();
+    const browserType = getInAppBrowserType();
+
+    setShowInAppWarning(isWebView);
+    setInAppBrowserType(browserType);
+
+    if (isWebView) {
+      console.warn('⚠️ [LoginPage] 인앱 브라우저 감지:', browserType);
+    }
+  }, []);
 
   const handleRoleSelect = (role: 'teacher' | 'student') => {
     setSelectedRole(role);
@@ -158,6 +181,69 @@ export default function LoginPage() {
               <p className="text-red-700">{error}</p>
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* WebView 경고 (교사용 - Google 로그인 사용) */}
+        {showInAppWarning && (
+          <Card className="mb-8 border-2 border-orange-300 bg-gradient-to-br from-orange-50 to-yellow-50 shadow-lg">
+            <CardHeader className="pb-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <AlertCircle className="w-6 h-6 text-orange-600" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-xl font-bold text-orange-900 mb-2">
+                    ⚠️ 인앱 브라우저 제한 안내
+                  </CardTitle>
+                  <p className="text-orange-800 font-medium">
+                    {getInAppBrowserMessage(inAppBrowserType)}
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="bg-white/70 rounded-lg p-4 border border-orange-200">
+                  <p className="text-sm font-semibold text-orange-900 mb-3">
+                    📱 {getOpenInBrowserInstructions().title}
+                  </p>
+                  <ol className="space-y-2 text-sm text-orange-800">
+                    {getOpenInBrowserInstructions().steps.map((step, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <span className="flex-shrink-0 w-5 h-5 bg-orange-200 text-orange-900 rounded-full flex items-center justify-center text-xs font-bold">
+                          {index + 1}
+                        </span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    onClick={() => openInExternalBrowser()}
+                    className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all"
+                  >
+                    <ExternalLink className="w-5 h-5 mr-2" />
+                    외부 브라우저에서 열기
+                  </Button>
+                  <Button
+                    onClick={() => setShowInAppWarning(false)}
+                    variant="outline"
+                    className="flex-1 border-2 border-orange-300 text-orange-800 hover:bg-orange-50 font-medium py-3"
+                  >
+                    계속하기 (제한적)
+                  </Button>
+                </div>
+
+                <p className="text-xs text-orange-700 text-center mt-2">
+                  💡 <strong>학생</strong>은 학급 코드로 접속하므로 인앱 브라우저에서도 사용 가능합니다
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* 역할 선택 */}
