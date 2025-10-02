@@ -156,7 +156,7 @@ export function ClassMoodOverview({ classCode }: ClassMoodOverviewProps) {
             최근 학급 감정 현황
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            최신 데이터 기준 (오늘 또는 최근 24시간)
+            최신 데이터 기준 (최근 24시간 내 마지막 제출)
           </p>
         </CardHeader>
         <CardContent>
