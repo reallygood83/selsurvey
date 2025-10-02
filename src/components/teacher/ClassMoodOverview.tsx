@@ -206,7 +206,7 @@ export function ClassMoodOverview({ classCode }: ClassMoodOverviewProps) {
                           {mood.emotion}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {format(mood.submittedAt, 'HH:mm')}
+                          {format(mood.submittedAt, 'HH:mm', { locale: ko })}
                         </div>
                       </div>
                       <Badge 

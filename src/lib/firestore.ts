@@ -1,18 +1,19 @@
 // Firestore 데이터베이스 유틸리티 함수
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  limit, 
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  limit,
   Timestamp,
-  writeBatch
+  writeBatch,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
 import {
@@ -1014,21 +1015,22 @@ export const moodService = {
     console.log('💾 [moodService] saveDailyMood 호출됨:', mood);
     console.log('💾 [moodService] Firebase db 상태:', !!db);
     console.log('💾 [moodService] 사용할 컬렉션:', COLLECTIONS.DAILY_MOODS);
-    
+
     try {
       const moodRef = collection(db, COLLECTIONS.DAILY_MOODS);
       console.log('💾 [moodService] 컬렉션 참조 생성 완료');
-      
+
+      // ✅ 클라이언트 시간대 문제 해결: 항상 서버 타임스탬프 사용
       const docData = {
         ...mood,
-        submittedAt: toTimestamp(mood.submittedAt as Date)
+        submittedAt: serverTimestamp() // Firebase 서버 시간 사용
       };
-      console.log('💾 [moodService] 저장할 문서 데이터:', docData);
-      
+      console.log('💾 [moodService] 저장할 문서 데이터 (서버 타임스탬프 사용):', docData);
+
       const docRef = await addDoc(moodRef, docData);
       console.log('✅ [moodService] 문서 저장 완료, ID:', docRef.id);
       console.log('✅ [moodService] 문서 경로:', docRef.path);
-      
+
       return docRef.id;
     } catch (error) {
       console.error('❌ [moodService] saveDailyMood 오류:', error);
@@ -1191,15 +1193,14 @@ export const moodService = {
   // 무드 업데이트 (당일 무드 수정)
   async updateTodayMood(studentId: string, moodUpdate: Partial<DailyMood>): Promise<void> {
     const existingMood = await this.getTodayMood(studentId);
-    
+
     if (existingMood) {
       const moodRef = doc(db, COLLECTIONS.DAILY_MOODS, existingMood.id);
       const processedUpdate = { ...moodUpdate } as Record<string, unknown>;
-      
-      if (processedUpdate.submittedAt) {
-        processedUpdate.submittedAt = toTimestamp(processedUpdate.submittedAt as Date);
-      }
-      
+
+      // ✅ 항상 서버 타임스탬프로 업데이트 시간 기록
+      processedUpdate.submittedAt = serverTimestamp();
+
       await updateDoc(moodRef, processedUpdate);
     } else {
       // 오늘 무드가 없으면 새로 생성
@@ -1213,9 +1214,9 @@ export const moodService = {
         energy: moodUpdate.energy || 'low',
         pleasantness: moodUpdate.pleasantness || 'pleasant',
         note: moodUpdate.note,
-        submittedAt: new Date()
+        submittedAt: new Date() // saveDailyMood에서 서버 타임스탬프로 변환됨
       };
-      
+
       await this.saveDailyMood(newMood);
     }
   }

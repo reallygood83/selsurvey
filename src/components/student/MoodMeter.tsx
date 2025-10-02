@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { moodOptions, moodMeterDescription } from '@/data/moodMeter';
 import { moodService } from '@/lib/firestore';
+import { serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { DailyMood, MoodOption } from '@/types';
 import { CalendarDays, Heart, MessageCircle } from 'lucide-react';
