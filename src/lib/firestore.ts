@@ -100,10 +100,19 @@ export const classService = {
   // 반 생성
   async createClass(classInfo: Omit<ClassInfo, 'id'>): Promise<string> {
     const classRef = collection(db, COLLECTIONS.CLASSES);
-    const docRef = await addDoc(classRef, {
+
+    // 필수 필드들 자동 생성
+    const now = new Date();
+    const completeClassInfo = {
       ...classInfo,
-      createdAt: toTimestamp(classInfo.createdAt)
-    });
+      classCode: classInfo.classCode || this.generateClassCode(),
+      students: classInfo.students || [],
+      studentCount: classInfo.studentCount || 0,
+      isActive: classInfo.isActive !== undefined ? classInfo.isActive : true,
+      createdAt: toTimestamp(classInfo.createdAt || now)
+    };
+
+    const docRef = await addDoc(classRef, completeClassInfo);
     return docRef.id;
   },
 
