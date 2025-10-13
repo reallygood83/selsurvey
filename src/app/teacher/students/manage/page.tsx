@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { classService, studentService, surveyService } from '@/lib/firestore';
 import { ClassInfo, StudentProfile, SurveyResponse, Grade } from '@/types';
+import { ClassSelector } from '@/components/teacher/ClassSelector';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,19 +48,24 @@ export default function StudentManagePage() {
   const [sortBy, setSortBy] = useState<'number' | 'name'>('number'); // 🆕 정렬 기준
 
   useEffect(() => {
-    if (user && userProfile?.role === 'teacher' && userProfile.schoolInfo?.classCode) {
+    if (user && userProfile?.role === 'teacher') {
       loadStudentData();
     }
   }, [user, userProfile]);
 
-  const loadStudentData = async () => {
-    if (!user || !userProfile?.schoolInfo?.classCode) return;
+  const loadStudentData = async (selectedClass?: ClassInfo) => {
+    if (!user) return;
 
     setLoading(true);
     try {
       console.log('데이터 로딩 시작...');
-      // 반 정보 로드
-      const classData = await classService.getClassByCode(userProfile.schoolInfo.classCode);
+
+      // 선택된 학급이 있으면 사용, 없으면 활성 학급 로드
+      let classData = selectedClass;
+      if (!classData) {
+        classData = await classService.getActiveClass(user.uid);
+      }
+
       console.log('반 데이터:', classData);
       
       if (classData) {
@@ -383,25 +389,31 @@ export default function StudentManagePage() {
       {/* 헤더 */}
       <header className="bg-background border-b">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="flex items-center gap-4">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+            {/* 좌측: 제목 및 학급 선택 */}
+            <div className="flex-1">
+              <div className="flex items-center gap-4 mb-3">
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/teacher/dashboard">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     대시보드로
                   </Link>
                 </Button>
-                <div>
-                  <h1 className="text-3xl font-bold">학생 관리</h1>
-                  {classInfo && (
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {classInfo.schoolName} {classInfo.grade}학년 {classInfo.className}
-                    </p>
-                  )}
-                </div>
+                <h1 className="text-3xl font-bold">학생 관리</h1>
               </div>
+              {user && (
+                <ClassSelector
+                  currentClassId={classInfo?.id}
+                  onClassChange={(newClass) => {
+                    console.log('📍 학급 변경:', newClass.className);
+                    loadStudentData(newClass);
+                  }}
+                  userId={user.uid}
+                />
+              )}
             </div>
+
+            {/* 우측: 학생 추가 버튼 */}
             <div className="flex space-x-4">
               <Button onClick={() => setShowAddDialog(true)}>
                 <UserPlus className="w-4 h-4 mr-2" />
