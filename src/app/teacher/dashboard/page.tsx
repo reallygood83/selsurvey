@@ -17,6 +17,7 @@ import { StudentAnalysisCard } from '@/components/teacher/StudentAnalysisCard';
 import { ClassMoodOverview } from '@/components/teacher/ClassMoodOverview';
 import { StudentEmotionChart } from '@/components/teacher/StudentEmotionChart';
 import { StudentInviteLink } from '@/components/teacher/StudentInviteLink';
+import { ClassSelector } from '@/components/teacher/ClassSelector';
 
 export default function TeacherDashboardPage() {
   const { user, userProfile, logout, loading: authLoading } = useAuth();
@@ -346,15 +347,18 @@ export default function TeacherDashboardPage() {
     }
   };
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (selectedClass?: ClassInfo) => {
     if (!user) return;
 
     setLoading(true);
     try {
       console.log('🔄 [Dashboard] 데이터 로드 시작:', { teacherId: user.uid });
 
-      // 활성 학급 가져오기 (새로운 다중 학급 시스템)
-      const activeClass = await classService.getActiveClass(user.uid);
+      // 선택된 학급이 있으면 사용, 없으면 활성 학급 가져오기
+      let activeClass = selectedClass;
+      if (!activeClass) {
+        activeClass = await classService.getActiveClass(user.uid);
+      }
 
       if (!activeClass) {
         console.log('⚠️ [Dashboard] 활성 학급 없음');
@@ -371,7 +375,7 @@ export default function TeacherDashboardPage() {
         return;
       }
 
-      console.log('✅ [Dashboard] 활성 학급 확인:', {
+      console.log('✅ [Dashboard] 학급 확인:', {
         className: activeClass.className,
         classCode: activeClass.classCode,
         studentCount: activeClass.studentCount
@@ -643,15 +647,25 @@ export default function TeacherDashboardPage() {
 
         {/* 페이지 헤더 */}
         <div className="bg-white border-b px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">교사 대시보드</h1>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-gray-900 mb-3">교사 대시보드</h1>
+              {/* 학급 선택 드롭다운 */}
+              {user && (
+                <ClassSelector
+                  currentClassId={classInfo?.id}
+                  onClassChange={(newClass) => {
+                    console.log('📍 학급 변경:', newClass.className);
+                    loadDashboardData(newClass);
+                  }}
+                  userId={user.uid}
+                />
+              )}
               {classInfo && (
-                <div className="mt-1 flex items-center text-sm text-gray-500">
+                <div className="mt-2 flex items-center text-sm text-gray-500">
                   <span>{classInfo.schoolName}</span>
                   <ChevronRight className="mx-1 h-4 w-4" />
-                  <span>{classInfo.grade}학년 {classInfo.className}</span>
-                  <Badge variant="outline" className="ml-2 font-mono">
+                  <Badge variant="outline" className="font-mono">
                     {classInfo.classCode}
                   </Badge>
                 </div>

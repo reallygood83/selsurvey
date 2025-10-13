@@ -16,7 +16,8 @@ import {
   Trash2,
   CheckCircle,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  BarChart3
 } from 'lucide-react';
 import { classService } from '@/lib/firestore';
 import { ClassInfo } from '@/types';
@@ -139,6 +140,24 @@ export default function ClassesManagePage() {
     router.push('/teacher/classes/create');
   };
 
+  // 대시보드로 이동 (해당 학급 활성화 후)
+  const handleViewDashboard = async (classId: string, isActive: boolean) => {
+    try {
+      // 활성 학급이 아니면 먼저 활성화
+      if (!isActive && user) {
+        setSwitchingClass(classId);
+        await classService.switchActiveClass(user.uid, classId);
+      }
+      // 대시보드로 이동
+      router.push('/teacher/dashboard');
+    } catch (err) {
+      console.error('대시보드 이동 오류:', err);
+      setError('대시보드로 이동하는 데 실패했습니다.');
+    } finally {
+      setSwitchingClass(null);
+    }
+  };
+
   // 학급 카드 렌더링
   const renderClassCard = (classInfo: ClassInfo) => {
     const isSwitching = switchingClass === classInfo.id;
@@ -196,74 +215,97 @@ export default function ClassesManagePage() {
             </div>
 
             {/* 액션 버튼 */}
-            <div className="flex gap-2 pt-2">
-              {!classInfo.isActive && (
-                <Button
-                  onClick={() => handleSwitchClass(classInfo.id)}
-                  disabled={isSwitching}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                  size="sm"
-                >
-                  {isSwitching ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      전환 중...
-                    </>
-                  ) : (
-                    <>
-                      <ArrowRight className="w-4 h-4 mr-1" />
-                      활성화
-                    </>
-                  )}
-                </Button>
-              )}
-
-              {classInfo.isActive && (
-                <Button
-                  onClick={() => handleDeactivateClass(classInfo.id)}
-                  disabled={isSwitching}
-                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
-                  size="sm"
-                >
-                  {isSwitching ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      처리 중...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4 mr-1" />
-                      비활성화
-                    </>
-                  )}
-                </Button>
-              )}
-
+            <div className="flex flex-col gap-2 pt-2">
+              {/* 대시보드 버튼 - 항상 표시 */}
               <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEditClass(classInfo.id);
-                }}
-                variant="outline"
+                onClick={() => handleViewDashboard(classInfo.id, classInfo.isActive)}
+                disabled={isSwitching}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm"
                 size="sm"
-                className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                title="학급 수정"
               >
-                <Edit className="w-4 h-4" />
+                {isSwitching && !classInfo.isActive ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    활성화 중...
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    대시보드 보기
+                  </>
+                )}
               </Button>
 
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteClick(classInfo.id);
-                }}
-                variant="outline"
-                size="sm"
-                className="border-red-200 text-red-600 hover:bg-red-50"
-                title="학급 삭제"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              {/* 기존 버튼들 */}
+              <div className="flex gap-2">
+                {!classInfo.isActive && (
+                  <Button
+                    onClick={() => handleSwitchClass(classInfo.id)}
+                    disabled={isSwitching}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    size="sm"
+                  >
+                    {isSwitching ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        전환 중...
+                      </>
+                    ) : (
+                      <>
+                        <ArrowRight className="w-4 h-4 mr-1" />
+                        활성화
+                      </>
+                    )}
+                  </Button>
+                )}
+
+                {classInfo.isActive && (
+                  <Button
+                    onClick={() => handleDeactivateClass(classInfo.id)}
+                    disabled={isSwitching}
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
+                    size="sm"
+                  >
+                    {isSwitching ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        처리 중...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        비활성화
+                      </>
+                    )}
+                  </Button>
+                )}
+
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditClass(classInfo.id);
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                  title="학급 수정"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClick(classInfo.id);
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="border-red-200 text-red-600 hover:bg-red-50"
+                  title="학급 삭제"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
