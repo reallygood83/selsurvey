@@ -82,6 +82,7 @@ export interface User {
   photoURL?: string;
   role: UserRole;
   schoolInfo?: SchoolInfo;
+  encryptedGeminiApiKey?: string; // 🔐 암호화된 Gemini API 키 (Firebase 저장용)
   createdAt: Date;
   updatedAt: Date;
 }

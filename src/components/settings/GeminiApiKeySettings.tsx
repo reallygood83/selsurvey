@@ -21,8 +21,8 @@ export function GeminiApiKeySettings() {
     return key.startsWith('AIza') && key.length >= 20;
   };
 
-  // API 키 저장
-  const handleSave = () => {
+  // 🔐 API 키 저장 (Firestore 암호화 저장)
+  const handleSave = async () => {
     if (!inputKey.trim()) {
       setMessage({ type: 'error', text: 'API 키를 입력해주세요.' });
       return;
@@ -34,24 +34,32 @@ export function GeminiApiKeySettings() {
     }
 
     try {
-      setGeminiApiKey(inputKey);
+      setMessage({ type: 'success', text: '암호화 및 저장 중...' });
+      await setGeminiApiKey(inputKey); // 🆕 async 호출
       setIsEditing(false);
       setInputKey('');
-      setMessage({ type: 'success', text: 'Gemini API 키가 성공적으로 저장되었습니다!' });
-      
-      // 3초 후 메시지 제거
-      setTimeout(() => setMessage(null), 3000);
+      setMessage({ type: 'success', text: '✅ Gemini API 키가 안전하게 저장되었습니다! (Firestore 암호화 저장)' });
+
+      // 5초 후 메시지 제거
+      setTimeout(() => setMessage(null), 5000);
     } catch (error) {
-      setMessage({ type: 'error', text: 'API 키 저장 중 오류가 발생했습니다.' });
+      console.error('API 키 저장 오류:', error);
+      setMessage({ type: 'error', text: '❌ API 키 저장 중 오류가 발생했습니다. 다시 시도해주세요.' });
     }
   };
 
-  // API 키 삭제
-  const handleRemove = () => {
+  // 🔐 API 키 삭제 (Firestore에서 제거)
+  const handleRemove = async () => {
     if (typeof window !== 'undefined' && window.confirm('정말로 Gemini API 키를 삭제하시겠습니까?\nSEL 분석 기능을 사용할 수 없게 됩니다.')) {
-      removeGeminiApiKey();
-      setMessage({ type: 'success', text: 'Gemini API 키가 삭제되었습니다.' });
-      setTimeout(() => setMessage(null), 3000);
+      try {
+        setMessage({ type: 'success', text: '삭제 중...' });
+        await removeGeminiApiKey(); // 🆕 async 호출
+        setMessage({ type: 'success', text: '✅ Gemini API 키가 안전하게 삭제되었습니다.' });
+        setTimeout(() => setMessage(null), 5000);
+      } catch (error) {
+        console.error('API 키 삭제 오류:', error);
+        setMessage({ type: 'error', text: '❌ API 키 삭제 중 오류가 발생했습니다.' });
+      }
     }
   };
 
@@ -77,7 +85,7 @@ export function GeminiApiKeySettings() {
         </CardTitle>
         <CardDescription>
           SEL 분석 기능을 사용하기 위해 개인 Gemini API 키를 설정하세요.
-          API 키는 브라우저 로컬 스토리지에만 저장되며, 서버로 전송되지 않습니다.
+          🔐 API 키는 AES-256 암호화되어 Firebase에 안전하게 저장되며, 모든 기기에서 동일하게 사용할 수 있습니다.
         </CardDescription>
       </CardHeader>
       

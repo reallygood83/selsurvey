@@ -7,7 +7,15 @@ service cloud.firestore {
     
     // 사용자 프로필 - 인증된 사용자가 자신의 데이터 접근 (최우선 규칙)
     match /users/{userId} {
+      // 🔐 보안 강화: 자신의 프로필만 읽기/쓰기 가능
       allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // 🔒 추가 검증: encryptedGeminiApiKey 필드는 본인만 수정 가능
+      allow update: if request.auth != null &&
+                       request.auth.uid == userId &&
+                       // API 키 필드가 변경되는 경우 추가 검증
+                       (!request.resource.data.keys().hasAny(['encryptedGeminiApiKey']) ||
+                        request.auth.uid == userId);
     }
     
     // 개발 환경용: 나머지 모든 컬렉션에 대한 접근 허용
