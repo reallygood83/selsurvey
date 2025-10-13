@@ -38,6 +38,7 @@ export default function StudentManagePage() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
+  const [selectedClassInfo, setSelectedClassInfo] = useState<ClassInfo | null>(null); // 🆕 드롭다운에서 선택된 학급 정보 유지
   const [students, setStudents] = useState<StudentWithResponses[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
@@ -60,16 +61,17 @@ export default function StudentManagePage() {
     try {
       console.log('데이터 로딩 시작...');
 
-      // 선택된 학급이 있으면 사용, 없으면 활성 학급 로드
-      let classData = selectedClass;
+      // 선택된 학급이 있으면 사용, 없으면 이전에 선택된 학급 또는 활성 학급 로드
+      let classData = selectedClass || selectedClassInfo;
       if (!classData) {
         classData = await classService.getActiveClass(user.uid);
       }
 
       console.log('반 데이터:', classData);
-      
+
       if (classData) {
         setClassInfo(classData);
+        setSelectedClassInfo(classData); // 🆕 선택된 학급 정보 저장
 
         // 학생 목록 로드
         const studentsData = await studentService.getStudentsByClass(classData.classCode);
